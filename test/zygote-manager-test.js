@@ -4,13 +4,24 @@ const hlt = require('./testutil');
 var numFailed = 0;
 var numSuccess = 0;
 console.log("> Testing ZygoteManager...");
+/*
 spawnWorkZygoteTest()
 .then(spawnFailRefuseZygoteTest)
 .then(spawnFailMessageTest)
+.then(spawnWorkerTimeoutTest)
+.then(spawnWorkerNoTimeoutTest)
+*/
+spawnWorkerNoTimeoutTest()
 .then(() => {
     console.log(hlt("> ZygoteManager test finished", "inv"));
     console.log(">  " +  hlt("Success: " + numSuccess, "green"));
     console.log("> " + hlt("Failures: " + numFailed, "red"));
+    /*
+    console.log(hlt("> Active Handles", "inv"));
+    console.log(process._getActiveHandles());
+    console.log(hlt("> Active Requests", "inv"));
+    console.log(process._getActiveRequests());
+    */
 });
 
 function spawnWorkZygoteTest() {
@@ -33,7 +44,7 @@ function spawnWorkZygoteTest() {
         setTimeout(()=> {
             console.log("Completed");
             resolve();
-        }, 5000);
+        }, 3000);
     });
 }
 
@@ -62,7 +73,7 @@ function spawnFailRefuseZygoteTest() {
         setTimeout(()=> {
             console.log("Completed");
             resolve();
-        }, 5000);
+        }, 3000);
     });
 }
 
@@ -91,6 +102,93 @@ function spawnFailMessageTest() {
         setTimeout(()=> {
             console.log("Completed");
             resolve();
-        }, 5000);
+        }, 3000);
+    });
+}
+
+function spawnWorkerTimeoutTest() {
+    console.log(hlt("> Start runTimeoutTest test", "under"));
+    ZygoteManager.create((err, zMan)=>{
+        if (err != null) {
+            console.error(hlt("Failed", "red") + " to create Zygote\n" + err);
+            var resp = zMan.forceKillMyZygote();
+            if (resp != null) {
+                console.error(hlt("Failed", "red") + " to force kill:" + resp);
+            }
+            numFailed++;
+        } else {
+            zMan.startWorker((err, zyInt)=>{
+                if (err != null) {
+                    numSuccess++;
+                    var resp = zMan.forceKillMyZygote();
+                    if (resp != null) {
+                        console.error(hlt("Failed", "red") + " to force kill:\n" + resp);
+                    }
+                } else {
+                    console.error(hlt("Failed", "red") + " by not timeing out\n" + err);
+                    numFailed++;
+                    var resp = zMan.killMyZygote();
+                    if (resp != null) {
+                        console.error(hlt("Failed", "red") + " to force kill:\n" + resp);
+                    }
+                }
+            });
+        }
+    }, "test/zygotes/spawnWorkZygote.py");
+
+    return new Promise((resolve) => {
+        setTimeout(()=> {
+            console.log("Completed");
+            resolve();
+        }, 3000);
+    });
+}
+
+function spawnWorkerNoTimeoutTest() {
+    console.log(hlt("> Start spawnWorkerNoTimeoutTest test", "under"));
+    ZygoteManager.create((err, zMan)=>{
+        if (err != null) {
+            console.error(hlt("Failed", "red") + " to create Zygote\n" + err);
+            var resp = zMan.forceKillMyZygote();
+            if (resp != null) {
+                console.error(hlt("Failed", "red") + " to force kill zygote:" + resp);
+            }
+            numFailed++;
+        } else {
+            zMan.startWorker((err)=>{
+                if (err != null) {
+                    console.error(hlt("Failed", "red") + " to create woker:\n" + err);
+                    numFailed++;
+                    var resp = zMan.forceKillMyZygote();
+                    if (resp != null) {
+                        console.error(hlt("Failed", "red") + " to force kill zygote:\n" + resp);
+                    }
+                } else {
+                    zMan.killWorker((err) => {
+                        if (err != null) {
+                            numFailed++;
+                            console.error(hlt("Failed", "red") + " to kill worker:\n" + err);
+                            var resp = zMan.forceKillMyZygote();
+                            if (resp != null) {
+                                console.error(hlt("Failed", "red") + " to force kill zygote:\n" + resp);
+                            }
+                        } else {
+                            numSuccess++;
+                            var resp = zMan.killMyZygote();
+                            if (resp != null) {
+                                console.error(hlt("Failed", "red") + " to kill zygote:\n" + resp);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    }, "test/zygotes/spawnWorkerZygote.py");
+
+    return new Promise((resolve) => {
+        setTimeout(()=> {
+            console.log("Completed");
+            resolve();
+        }, 4000);
     });
 }

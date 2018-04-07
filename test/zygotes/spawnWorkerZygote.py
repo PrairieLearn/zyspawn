@@ -11,7 +11,11 @@ def parseInput(command_input):
     elif (action == "kill self"):
         sys.exit(0);
     elif (action == "start worker"):
-        message = None
+        message["success"] = True
+        message["message"] = "Worker has failed to spawn"
+    elif (action == "kill worker"):
+        message["success"] = True
+        message["message"] = "Killed worker"
     return message
 
 inZy = 4
