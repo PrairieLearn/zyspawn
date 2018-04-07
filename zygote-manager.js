@@ -320,11 +320,10 @@ class ZygoteManager {
      * Kill Zygote with SIGINT
      */
     forceKillMyZygote() {
-      console.log("Zygote Force Killing");
-      if (![INIT, ERROR].includes(this.state)) {
-        return new Error('Cannot force kill zygote until worker is killed');
+      if (![CREATING, INIT, ERROR].includes(this.state)) {
+        return new Error('Cannot force kill zygote until worker is killed' + String(this.state));
       }
-      if (!this._checkState([INIT, ERROR])) {
+      if (!this._checkState([CREATING, INIT, ERROR])) {
         return new Error('invalid ZygoteManager state');
       }
 
