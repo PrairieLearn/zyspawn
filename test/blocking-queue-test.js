@@ -44,7 +44,7 @@ function correctnessTest() {
     return new Promise((resolve) => {
         setTimeout(()=> {
             console.log("> Order should be Got 1, Got 2, Put 2, Got 2, Put 1, Got 1");
-            console.log("> Correctness test done");            
+            console.log("> Correctness test done");
             resolve();
         }, 2000);
     });
