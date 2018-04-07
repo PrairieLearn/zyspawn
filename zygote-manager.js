@@ -47,7 +47,6 @@ class ZygoteManager {
      *                                                  zygote is initialized
      */
     static create(callback, zygote = 'zygote.py', debugMode = false) {
-        console.log("[ZygoteManager] Creating zygote");
         // TODO label create function as createPython
 
         // Options for constructor
@@ -77,7 +76,6 @@ class ZygoteManager {
         this.debugMode = debugMode;
         options = options || {};
         options['stdio'] = ['pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe'];
-        console.log("Spawning Zygote " + command)
         this.messageBuffer = ""
         this.child = child_process.spawn(command, args, options);
 
@@ -146,7 +144,10 @@ class ZygoteManager {
      * a new ZygoteManager and restart their work.
      */
     run(fileName, functionName, arg, callback) {
-        console.log(util.format("[ZygoteManager] Running %s:%s", fileName, functionName));
+        if (this.debugMode) {
+          console.log(util.format("[ZygoteManager] Running %s:%s", fileName, functionName));
+        }
+
         if (![READY].includes(this.state)) {
           return callback(new Error('invalid internal PythonCaller state for call()'));
         }
@@ -181,7 +182,9 @@ class ZygoteManager {
         this._checkState();
         this.stdinWrite(callDataString + '\n');
         this.timeoutID = setTimeout(() => {
-            console.log(util.format("[ZygoteManager] Finish %s.%s", fileName, functionName));
+            if (this.debugMode) {
+              console.log(util.format("[ZygoteManager] Finish %s.%s", fileName, functionName));
+            }
             callback(null, new Output("<stdout>", "<stderr>", "<result>"));
             this.timeoutID = null;
         }, 1000);
@@ -303,7 +306,6 @@ class ZygoteManager {
      * Kill Zygote with request over pipe
      */
     killMyZygote() {
-      console.log("Zygote Killing");
       if (![INIT].includes(this.state)) {
         return new Error('Cannot kill zygote until worker is killed');
       }
@@ -428,7 +430,9 @@ class ZygoteManager {
     }
 
     _handleStderrData(data) {
-        console.log("TEST: _handleStderrData " + data);
+        if (this.debugMode) {
+          console.log("ZygoteManager: Stderr: " + data);
+        }
         this._checkState([IN_CALL, EXITING, EXITED]);
         if (this.state == IN_CALL) {
             this.outputStderr += data;
@@ -437,7 +441,9 @@ class ZygoteManager {
     }
 
     _handleStdoutData(data) {
-        console.log("TEST: _handleStdoutData");
+        if (this.debugMode) {
+          console.log("ZygoteManager: Stdout: " + data);
+        }
         this._checkState([IN_CALL, EXITING, EXITED]);
         if (this.state == IN_CALL) {
             this.outputStdout += data;
@@ -446,7 +452,9 @@ class ZygoteManager {
     }
 
     _handleStdio3Data(data) {
-        console.log("TEST: _handleStdio3Data");
+        if (this.debugMode) {
+          console.log("ZygoteManager: Stdio3: " + data);
+        }
         this._checkState([IN_CALL, EXITING, EXITED]);
         if (this.state == IN_CALL) {
             this.outputData += data;
@@ -489,7 +497,6 @@ class ZygoteManager {
      * a new ZygoteManager and restart their work.
      */
     killWorker(callback) {
-        console.log("[ZygoteManager] Killing worker");
         if (![READY].includes(this.state)) {
             return new Error('invalid internal ZygoteManager state for call()');
         }
