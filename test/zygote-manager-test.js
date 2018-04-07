@@ -4,14 +4,11 @@ const hlt = require('./testutil');
 var numFailed = 0;
 var numSuccess = 0;
 console.log("> Testing ZygoteManager...");
-/*
 spawnWorkZygoteTest()
 .then(spawnFailRefuseZygoteTest)
 .then(spawnFailMessageTest)
 .then(spawnWorkerTimeoutTest)
 .then(spawnWorkerNoTimeoutTest)
-*/
-spawnWorkerNoTimeoutTest()
 .then(() => {
     console.log(hlt("> ZygoteManager test finished", "inv"));
     console.log(">  " +  hlt("Success: " + numSuccess, "green"));
