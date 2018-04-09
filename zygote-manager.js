@@ -76,7 +76,7 @@ class ZygoteManager {
         this.debugMode = debugMode;
         options = options || {};
         options['stdio'] = ['pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe'];
-        this.messageBuffer = ""
+        this.messageBuffer = "";
         this.child = child_process.spawn(command, args, options);
 
         this.stdin = this.child.stdin;
@@ -108,13 +108,13 @@ class ZygoteManager {
             this.child.stderr.removeAllListeners();
         });
         this.child.stdout.on('close', ()=>{
-            this.child.stderr.removeAllListeners();
+            this.child.stdout.removeAllListeners();
         });
         this.stdio3.on('close', ()=>{
-            this.child.stderr.removeAllListeners();
+            this.stdio3.removeAllListeners();
         });
         this.child.stdio[5].on('close', ()=>{
-            this.child.stderr.removeAllListeners();
+            this.child.stdio[5].removeAllListeners();
         });
 
         // Call status on zygote.py inorder to determine if it is alive
@@ -123,6 +123,7 @@ class ZygoteManager {
 
         // After 3 seconds, assume creating zygote failed
         this.timeoutID = setTimeout(() => {
+            this.state = ERROR;
             this.createCallBack(new Error("Timeout creating zygote"), this);
             this.createCallBack = null;
             this.timeoutID = null;
@@ -179,7 +180,7 @@ class ZygoteManager {
         this.lastCallData = callData;
         this.state = IN_CALL;
         this._checkState();
-        this.stdinWrite(callDataString + '\n');
+        this.st1dinWrite(callDataString + '\n');
         this.timeoutID = setTimeout(() => {
             if (this.debugMode) {
               console.log(util.format("[ZygoteManager] Finish %s.%s", fileName, functionName));
@@ -199,9 +200,9 @@ class ZygoteManager {
         } else {
           this._clearTimeout();
           this.state = ERROR;
-          this.createCallBack(new Error('Failed with messsage: ' + message['message']), this);
+          this.createCallBack(new Error('_createdMessageHandler Failed with messsage: ' + message['message']), this);
           this.createCallBack = null;
-          this._logError('Failed with messsage "' + message['message'] + '"');
+          this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
         }
     }
 
@@ -211,8 +212,7 @@ class ZygoteManager {
           logger.info('Cannot handle message ' + message['message'] + ' while in state INIT');
         } else {
           // TODO Add Handler here
-          this._logError('ZygoteManager state ' + this.state
-            + ': Failed with messsage "' + message['message'] + '"');
+          this._logError('_initMessageHandler Failed with messsage "' + message['message'] + '"');
         }
     }
 
@@ -229,7 +229,7 @@ class ZygoteManager {
           this.workerSpawned = false;
           this.prepCallBack(new Error(message['message']));
           this.prepCallBack = null;
-          this._logError('Failed with messsage"' + message['message'] + '"');
+          this._logError('_prepMessageHandler Failed with messsage"' + message['message'] + '"');
         }
     }
 
@@ -239,8 +239,7 @@ class ZygoteManager {
           logger.info('Cannot handle message ' + message['message'] + ' while in state READY');
         } else {
           // TODO Add Handler here
-          this._logError('ZygoteManager state ' + this.state
-            + ': Failed with messsage "' + message['message'] + '"');
+          this._logError('_readyMessageHandler Failed with messsage "' + message['message'] + '"');
         }
     }
 
@@ -250,7 +249,7 @@ class ZygoteManager {
             // TODO add some handler here?
         } else {
             this.incallCallBack(new Error(message['message']), null);
-            this._logError('Failed with messsage"' + message['message'] + '"');
+            this._logError('_incallMessageHandler Failed with messsage"' + message['message'] + '"');
             // TODO Error handle better
         }
     }
@@ -266,7 +265,7 @@ class ZygoteManager {
         } else {
             this.state = ERROR;
             this._clearTimeout();
-            this._logError('Failed with messsage"' + message['message'] + '"');
+            this._logError('_exitingMessageHandler Failed with messsage"' + message['message'] + '"');
             this.exitingCallBack(new Error(message['message']));
             this.exitingCallBack = null;
         }
@@ -335,17 +334,15 @@ class ZygoteManager {
      * Kill Zygote with SIGINT
      */
     forceKillMyZygote() {
-      if (this.debugMode) {
-          console.log("[ZygoteManager] force killing my zygote");
-      }
-
+      /*
       if (![CREATING, INIT, ERROR].includes(this.state)) {
         return new Error('Cannot force kill zygote until worker is killed: ' + String(this.state));
       }
       if (!this._checkState([CREATING, INIT, ERROR])) {
         return new Error('invalid ZygoteManager state: ' + String(this.state));
       }
-
+      */
+      this._logError("Forcing death of zygote");
       this.child.kill('SIGINT');
     }
 
@@ -450,8 +447,8 @@ class ZygoteManager {
         if (this.debugMode) {
           console.log("ZygoteManager: Stderr: " + data);
         }
-        // INIT and Prepping makes sure that Zygote exsists
-        this._checkState([INIT, PREPPING, IN_CALL, EXITING, EXITED]);
+        // CREATING, INIT and Prepping Are added for zygote
+        this._checkState([CREATING, INIT, PREPPING, IN_CALL, EXITING, EXITED, ERROR]);
         if (this.state == IN_CALL) {
             this.outputStderr += data;
             this.outputBoth += data;
@@ -557,7 +554,7 @@ class ZygoteManager {
 
     _logError(msg) {
         if (this.debugMode) {
-            console.error('[ZygoteManager] in state (' + String(this.state) + '): ' + msg);
+            console.error('[ZygoteManager] in state (' + String(this.state) + ') error: ' + msg);
         }
     }
 

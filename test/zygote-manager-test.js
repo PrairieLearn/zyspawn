@@ -78,7 +78,7 @@ function spawnFailMessageTest() {
     console.log(hlt("> Start spawnFailMessageTest test", "under"));
     ZygoteManager.create((err, zMan)=>{
         if (err != null) {
-            if (String(err) == "Error: Failed with messsage: Failed to create myself...somehow") {
+            if (String(err) == "Error: _createdMessageHandler Failed with messsage: Failed to create myself...somehow") {
               numSuccess++;
             } else {
               console.error(hlt("Failed", "red") + " to create Zygote with wrong error:\n" + err);
