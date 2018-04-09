@@ -1,3 +1,8 @@
+#TODO
+# 1. Implement The decoder
+# 2. Implement the signal handler
+# 3. Design and write necessary test cases.
+
 import signal
 import sys, os, json, importlib, copy, base64, io, matplotlib
 matplotlib.use('PDF')
@@ -13,6 +18,7 @@ matplotlib.use('PDF')
 #   5 is a pipe used by Zygote to respond to Server
 
 childPid = -1
+exitInfoPipe = open(6, 'w', encoding='utf-8')
 
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
@@ -29,8 +35,31 @@ def setChildPid(pid):
 #   Returns zero upon successful completion by the child
 #   Returns -1 otherwise
 
-def waitForChild():
+def waitForChild(signum, frame):
+    global exitInfoPipe
     pid = getChildPid()
-    if(pid == -1):
-        return -1
+    jsonDict = {}
+    # Need to discuss need for this precation
+    # if(pid == -1):
+    #     jsonDict["type"] = 'no child in progress'
+    #     jsonDict["code"] = 'no_child_err'
+    #     jsonDict["signal"] = 'Unkown'
+
     pid, status = os.waitpid(pid, os.WNOHANG)
+
+    # This indicates the successful completion of the child
+    # with the natural exit with no interuptions.
+    if (signum == signal.SIGCHLD):
+        jsonDict["type"] = 'exit'
+        jsonDict["code"] = exit_code
+        jsonDict["signal"] = "SIGCHLD"
+
+    # Message when the child is interupted!
+    else:
+        jsonDict["type"] = 'exit'
+        jsonDict["code"] = exit_code
+        jsonDict["signal"] = 'sig: ' + str(signum)
+        value_place = -1
+    jsonStr = json.dumps(jsonDict)
+    exitInfoPipe.write(jsonStr + '\n')
+    exitInfoPipe.flush()
