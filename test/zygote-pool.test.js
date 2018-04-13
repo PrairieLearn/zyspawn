@@ -13,7 +13,15 @@ test("simple test", async () => {
     expect(zygotePool.idleZygoteNum()).toBe(10);
 
     await new Promise((resolve, reject) => {
-        zygoteInterface.run("module", "function", {}, (err, result) => {
+        zygoteInterface.call("module", "function1", {}, (err, result) => {
+            expect(zygotePool.idleZygoteNum()).toBe(9);
+            expect(zygotePool.idleZygoteNum()).toBe(9);
+            resolve();
+        });
+    });
+
+    await new Promise((resolve, reject) => {
+        zygoteInterface.call("module", "function2", {}, (err, result) => {
             expect(zygotePool.idleZygoteNum()).toBe(9);
             zygoteInterface.done();
             expect(zygotePool.idleZygoteNum()).toBe(9);

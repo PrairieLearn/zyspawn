@@ -9,7 +9,7 @@
  * 
  *  var zygoteInterface = zygotePool.request();
  * 
- *  zygoteInterface.run(
+ *  zygoteInterface.call(
  *      "file-name",
  *      "function-name",
  *      {"argument1": "value1", "argument2": "value2", "and": "more"},
@@ -89,8 +89,8 @@ class ZygotePool {
     /**
      * Allocate a ZygoteManager for a ZygoteInterface.
      * @param {ZygoteInterface} zygoteInterface Where to allocate the ZygoteManager
-     * @param {function(Error, ZygoteManager)} callback The callback called after
-     *      a ZygoteManager is ready to work
+     * @param {function(Error)} callback Called after a ZygoteManager is allocated
+     *                                   or error happens
      */
     _allocateZygoteManager(zygoteInterface, callback) {
         this._idleZygoteManagerQueue.get((zygoteManager) => {
@@ -99,8 +99,7 @@ class ZygotePool {
                     // TODO create a new Zygote?
                     callback(err); // do we need to pass the error outside
                 } else {
-                    zygoteInterface.zygoteManager = zygoteManager;
-                    zygoteInterface._done = () => {
+                    zygoteInterface._initialize(zygoteManager, () => {
                         // TODO check if the zygote is still healthy
                         zygoteManager.killWorker((err) => {
                             if (err) {
@@ -109,7 +108,7 @@ class ZygotePool {
                                 this._idleZygoteManagerQueue.put(zygoteManager);
                             }
                         });
-                    }
+                    });
                     callback(null);
                 }
             });
@@ -133,6 +132,16 @@ class ZygoteInterface {
         this._zygoteManager = null;
         this._done = () => {};
     }
+    
+    /**
+     * Initialize with a ready ZygoteManager and done function
+     * @param {ZygoteManager} zygoteManager A ready ZygoteManager
+     * @param {function()} done The function to release resource
+     */
+    _initialize(zygoteManager, done) {
+        this._zygoteManager = zygoteManager;
+        this._done = done;
+    }
 
     /**
      * Run a function in a python script (See ZygoteManager.run()).
@@ -143,17 +152,17 @@ class ZygoteInterface {
      *      or any error happens. Output contains tree fields: stdout(String),
      *      stderr(String), result(object)
      */
-    run(fileName, functionName, arg, callback) {
+    call(fileName, functionName, arg, callback) {
         if (this._zygoteManager == null) {
             this._zygotePool._allocateZygoteManager(this, (err) => {
                 if (err) {
                     // TODO Do we really need to pass this error outside?
                 } else {
-                    this.zygoteManager.run(fileName, functionName, arg, callback);
+                    this._zygoteManager.call(fileName, functionName, arg, callback);
                 }
             });
         } else {
-            this.zygoteManager.run(fileName, functionName, arg, callback);
+            this._zygoteManager.call(fileName, functionName, arg, callback);
         }
     }
 
@@ -167,3 +176,4 @@ class ZygoteInterface {
 }
 
 module.exports.ZygotePool = ZygotePool
+module.exports.ZygoteInterface = ZygoteInterface

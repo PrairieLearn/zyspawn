@@ -69,7 +69,7 @@ class ZygoteManager {
     }
 
     /**
-     * Run a function in a python script.
+     * Call a function in a python script.
      * @param {String} fileName The file where the function resides
      * @param {String} functionName The function to run
      * @param {object} arg JSON object as arguments for the function
@@ -81,8 +81,8 @@ class ZygoteManager {
      * and this ZygoteManager should no longer be used. Users need to create
      * a new ZygoteManager and restart their work.
      */
-    run(fileName, functionName, arg, callback) {
-        console.log(util.format("[ZygoteManager] Running %s:%s", fileName, functionName));
+    call(fileName, functionName, arg, callback) {
+        console.log(util.format("[ZygoteManager] Calling %s:%s", fileName, functionName));
         setTimeout(() => {
             console.log(util.format("[ZygoteManager] Finish %s.%s", fileName, functionName));
             callback(null, new Output("<stdout>", "<stderr>", "<result>"));
