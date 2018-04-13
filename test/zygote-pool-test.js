@@ -1,5 +1,7 @@
 const util = require('util');
-const zygotePool = require('../zygote-pool');
+const {ZygotePool} = require('../zygote-pool');
+
+var zygotePool;
 
 console.log("> Testing ZygotePool...");
 initialize()
@@ -14,7 +16,7 @@ initialize()
 
 function initialize() {
     return new Promise((resolve) => {
-        zygotePool.init(10);
+        zygotePool = new ZygotePool(10);
         console.log(util.format("> Idle zygote number=%d (should be %d)",
                                 zygotePool.idleZygoteNum(), 0));
         resolve();
