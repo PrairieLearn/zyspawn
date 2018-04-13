@@ -27,7 +27,7 @@ class ZygoteManager {
         setTimeout(() => {
             console.log("[ZygoteManager] Zygote created");
             callback(null, new ZygoteManager());
-        }, 1000);
+        }, 100);
     }
 
     /**
@@ -46,7 +46,7 @@ class ZygoteManager {
         setTimeout(() => {
             console.log("[ZygoteManager] Worker started");
             callback(null);
-        }, 1000);
+        }, 100);
     }
 
     /**
@@ -65,7 +65,7 @@ class ZygoteManager {
         setTimeout(() => {
             console.log("[ZygoteManager] Worker killed");
             callback(null);
-        }, 1000);
+        }, 100);
     }
 
     /**
@@ -86,7 +86,7 @@ class ZygoteManager {
         setTimeout(() => {
             console.log(util.format("[ZygoteManager] Finish %s.%s", fileName, functionName));
             callback(null, new Output("<stdout>", "<stderr>", "<result>"));
-        }, 1000);
+        }, 100);
     }
 
     // more private methods ... 
