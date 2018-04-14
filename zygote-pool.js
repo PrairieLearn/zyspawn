@@ -5,7 +5,7 @@
  * Usage:
  *  const {ZygotePool} = require('zygote-pool');
  * 
- *  var zygotePool = new ZygotePool(10, (err) => { throw err; });
+ *  var zygotePool = new ZygotePool(10);
  * 
  *  var zygoteInterface = zygotePool.request();
  * 
@@ -40,8 +40,11 @@
  *  ./zygote.py
  * 
  */
+const _ = require('lodash');
 const BlockingQueue = require('./blocking-queue');
 const ZygoteManager = require('./zygote-manager');
+
+const DEFAULT_CALLBACK = (err) => { if(err) throw err; };
 
 /**
  * Manages a pool of zygotes. Users create and use zygotes through this class.
@@ -50,22 +53,35 @@ class ZygotePool {
     /**
      * Create a zygote pool.
      * @param {number} zygoteNum The number of zygotes to use
-     * @param {function(Error)} callback Callback called after initialization
+     * @param {function(Error)} callback Called after initialization,
+     *      if not specified, errors will be throwed.
      */
     constructor(zygoteNum, callback) {
+        callback = callback || DEFAULT_CALLBACK;
+
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
 
+        var jobs = [];
         for (let i = 0; i < zygoteNum; i++) {
-            ZygoteManager.create((err, zygoteManager) => {
-                if (err) {
-                    // TODO
-                } else {
-                    this._zygoteManagerList.push(zygoteManager);
-                    this._idleZygoteManagerQueue.put(zygoteManager);
-                }
-            });
+            jobs.push(new Promise((resolve) => {
+                ZygoteManager.create((err, zygoteManager) => {
+                    if (!err) {
+                        this._zygoteManagerList.push(zygoteManager);
+                        this._idleZygoteManagerQueue.put(zygoteManager);
+                    }
+                    resolve(err);
+                });
+            }));
         }
+
+        Promise.all(jobs).then((errs) => {
+            _.pull(errs, null);
+            callback(errs.length == 0 ? null : errs);
+            // TODO
+            // need to define error object
+            // kill live zygotes when error happens?
+        });
     }
 
     /**
@@ -99,13 +115,15 @@ class ZygotePool {
                     // TODO create a new Zygote?
                     callback(err); // do we need to pass the error outside
                 } else {
-                    zygoteInterface._initialize(zygoteManager, () => {
+                    zygoteInterface._initialize(zygoteManager, (callback) => {
                         // TODO check if the zygote is still healthy
                         zygoteManager.killWorker((err) => {
                             if (err) {
-                                // TODO log the error (and create a new Zygote?)
+                                // TODO create a new Zygote?
+                                callback(err);
                             } else {
                                 this._idleZygoteManagerQueue.put(zygoteManager);
+                                callback(null);
                             }
                         });
                     });
@@ -136,7 +154,9 @@ class ZygoteInterface {
     /**
      * Initialize with a ready ZygoteManager and done function
      * @param {ZygoteManager} zygoteManager A ready ZygoteManager
-     * @param {function()} done The function to release resource
+     * @param {function(function(Error))} done The function to release resource
+     *      of which the callback will be called after resource is released or
+     *      error happens.
      */
     _initialize(zygoteManager, done) {
         this._zygoteManager = zygoteManager;
@@ -155,8 +175,8 @@ class ZygoteInterface {
     call(fileName, functionName, arg, callback) {
         if (this._zygoteManager == null) {
             this._zygotePool._allocateZygoteManager(this, (err) => {
-                if (err) {
-                    // TODO Do we really need to pass this error outside?
+                if (err) { // Failure in ZygoteManager.startWorker()
+                    callback(err);
                 } else {
                     this._zygoteManager.call(fileName, functionName, arg, callback);
                 }
@@ -169,9 +189,12 @@ class ZygoteInterface {
     /**
      * Call the registered done function. Must be called after finishing using
      * this zygote, except that any error happens in use.
+     * @param {function(Error)} callback Called after the zygote is released
+     *      or error happens. If not specified, errors will be throwed.
      */
-    done() {
-        this._done();
+    done(callback) {
+        callback = callback || DEFAULT_CALLBACK;
+        this._done(callback);
     }
 }
 
