@@ -14,13 +14,21 @@ const util = require('util');
 const path = require('path');
 const child_process = require('child_process');
 
+/*CREATING, INIT, PREPPING, READY, IN_CALL, EXITING, EXITED, DEPARTING, DEPARTED, ERROR*/
+// States for creating zygote
 const CREATING = Symbol('CREATING');
 const INIT = Symbol('INIT');
+// States for creating worker
 const PREPPING = Symbol('PREPPING');
 const READY  = Symbol('READY');
+// States for when a call is in progress
 const IN_CALL = Symbol('IN_CALL');
+// States for when worker is exiting
 const EXITING = Symbol('EXITING');
 const EXITED  = Symbol('EXITED');
+// States for when zygote is exiting
+const DEPARTING = Symbol('DEPARTING');
+const DEPARTED = Symbol('DEPARTED'); // The zygote has died
 const ERROR  = Symbol('ERROR');
 
 /**
@@ -93,6 +101,7 @@ class ZygoteManager {
         this.prepCallBack = null;
         this.incallCallBack = null;
         this.exitingCallBack = null;
+        this.departingCallback = null;
         // tracks whether or not zygote.py has been spawned
         this.zygoteSpawned = false;
         // tracks whehter or not zygote.py has spawned worker
@@ -116,6 +125,8 @@ class ZygoteManager {
         this.child.stdio[5].on('close', ()=>{
             this.child.stdio[5].removeAllListeners();
         });
+
+        this.child
 
         // Call status on zygote.py inorder to determine if it is alive
         this.child.stdio[4].write(JSON.stringify({action: 'status'}));
@@ -281,6 +292,7 @@ class ZygoteManager {
             this.messageBuffer = arr[1];
             const message = JSON.parse(arr[0]);
             //logger.info('ZygoteManager: handling message: ' + message['success']);
+            /*CREATING, INIT, PREPPING, READY, IN_CALL, EXITING, EXITED, DEPARTING, DEPARTED, ERROR*/
             switch (this.state) {
               case CREATING:
                 // TODO Create helper methods for handling messages for each state
@@ -312,22 +324,31 @@ class ZygoteManager {
     /*
      * Kill Zygote with request over pipe
      */
-    killMyZygote() {
+    killMyZygote(callback) {
       if (this.debugMode) {
           console.log("[ZygoteManager] killing my zygote");
       }
-
+      // TODO add check for state=departed
       if (![INIT, EXITED].includes(this.state)) {
         return new Error('Cannot kill zygote until worker is killed: ' + String(this.state));
       }
       if (!this._checkState([INIT, EXITED])) {
         return new Error('invalid ZygoteManager state');
       }
-      //this.state = EXITING;
+      this.state = DEPARTING;
 
       this.child.stdio[4].write(JSON.stringify({action: 'kill self'}));
       this.child.stdio[4].write('\n');
+
       // TODO add callback
+      this.departingCallback = callback;
+      this.timeoutID = setTimeout(() => {
+          if (this.debugMode) {
+            console.log("[ZygoteManager] timeout while trying to kill zygote");
+          }
+          callback(null, new Output("<stdout>", "<stderr>", "<result>"));
+          this.timeoutID = null;
+      }, 3000);
     }
 
     /*
@@ -342,8 +363,18 @@ class ZygoteManager {
         return new Error('invalid ZygoteManager state: ' + String(this.state));
       }
       */
-      this._logError("Forcing death of zygote");
+      this.state = DEPARTING;
+      this._logError("Forcing death of zygote")
+      this.departingCallback = callback;;
       this.child.kill('SIGINT');
+
+      this.timeoutID = setTimeout(() => {
+          if (this.debugMode) {
+            console.log("[ZygoteManager] timeout while trying to force kill zygote");
+          }
+          callback(null, new Output("<stdout>", "<stderr>", "<result>"));
+          this.timeoutID = null;
+      }, 3000);
     }
 
     _checkState(allowedStates) {
@@ -352,6 +383,7 @@ class ZygoteManager {
             return this._logError('Expected PythonCaller states ' + allowedStatesList + ' but actually have state ' + String(this.state));
         }
 
+        /*CREATING, INIT, PREPPING, READY, IN_CALL, EXITING, EXITED, DEPARTING, DEPARTED, ERROR*/
         let hasZygoteSpawned, hasWorkerSpawned, hasTimeout;
         switch (this.state) {
           case CREATING:
@@ -387,6 +419,12 @@ class ZygoteManager {
           case EXITED:
             hasZygoteSpawned = true;
             hasWorkerSpawned = false;
+            hasTimeout = false;
+            break;
+          case DEPARTING:
+            hasTimeout = true;
+            break;
+          case DEPARTED:
             hasTimeout = false;
             break;
           case ERROR:

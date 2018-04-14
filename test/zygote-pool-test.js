@@ -3,9 +3,7 @@ const zygotePool = require('../zygote-pool');
 
 console.log("> Testing ZygotePool...");
 initialize()
-.then(wait(1500))
 .then(simpleTest)
-.then(wait(1500))
 .then(() => {
     console.log(util.format("> Idle zygote number=%d (should be %d)",
                             zygotePool.idleZygoteNum(), 10));
@@ -14,9 +12,9 @@ initialize()
 
 function initialize() {
     return new Promise((resolve) => {
-        zygotePool.init(10);
         console.log(util.format("> Idle zygote number=%d (should be %d)",
-                                zygotePool.idleZygoteNum(), 0));
+                              zygotePool.idleZygoteNum(), 0));
+        zygotePool.init(10);
         resolve();
     });
 }
