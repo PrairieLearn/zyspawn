@@ -102,7 +102,7 @@ def runWorker():
             sys.path = copy.copy(saved_path)
             for path in reversed(paths):
                 sys.path.insert(0, path)
-            sys.path.insert(0, cwd))
+            sys.path.insert(0, cwd)
 
             # change to the desired working directory
             os.chdir(cwd)
@@ -222,6 +222,10 @@ def parseInput(command_input):
         message["success"] = True
         status =  "not created" if (getChildPid()==-1) else "created"
         message["message"] = "The current status of my child" is "<%s>%(status)"
+    elif (action == "workerPid"):
+        message["success"] = True
+        pid_child = getChildPid()
+        message["message"] = "<%d>%(pid_child)"
     else:
         # DEBUG: Unkown Input
         message["success"] = False
