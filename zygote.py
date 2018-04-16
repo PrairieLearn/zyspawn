@@ -117,7 +117,139 @@ def runWorker():
                 method = getattr(mod, fcn)
                 val = method(*args)
 
-                if fcn == "file":
-                    # 
+                if fcn=="file":
+                    # if val is None, replace it with empty string
                     if val is None:
                         val = ''
+                    # if val is a file-like object, read whatever is inside
+                    if isinstance(val,io.IOBase):
+                        val.seek(0)
+                        val = val.read()
+                    # if val is a string, treat it as utf-8
+                    if isinstance(val,str):
+                        val = bytes(val,'utf-8')
+                    # if this next call does not work, it will throw an error, because
+                    # the thing returned by file() does not have the correct format
+                    val = base64.b64encode(val).decode()
+
+                # Any function that is not 'file' or 'render' will modify 'data' and
+                # should not be returning anything (because 'data' is mutable).
+                if (fcn != 'file') and (fcn != 'render'):
+                    if val is None:
+                        json_outp = json.dumps({"present": True, "val": args[-1]})
+                    else:
+                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                        json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
+                        if json_outp_passed != json_outp:
+                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                else:
+                    json_outp = json.dumps({"present": True, "val": val})
+            else:
+                # the function wasn't present, so report this
+                json_outp = json.dumps({"present": False})
+
+            # make sure all output streams are flushed
+            sys.stderr.flush()
+            sys.stdout.flush()
+
+            # write the return value (JSON on a single line)
+            outf.write(json_outp)
+            outf.write("\n");
+            outf.flush()
+
+
+saved_path = copy.copy(sys.path)
+
+'''
+Valid messages that could be sent to zygote
+{"action":"create worker"}
+{"action":"kill worker"}
+{"action":"status"}
+
+Messages that could be sent from zygote
+{
+"success":true,
+}
+{
+"success":true,
+"message":"The current status of my child is <status>"
+}
+{
+"success":False,
+"message":"already contains worker"
+}
+{
+"success":False,
+"message":"no current worker"
+}
+{
+"success":False,
+"message":"unknow command: <command>"
+}
+'''
+# Takes in a json object for a command to execute, returns message
+def parseInput(command_input):
+    message = {}
+
+    if ("action" not in command_input):
+        message["success"] = False
+        message["message"] = "No action specified in input"
+        return message
+
+    action = command_input["action"]
+    if (action == "create worker"):
+        if (getChildPid() != -1):
+            # we already have a child
+            message["success"] = False
+            message["message"] = "already contains worker"
+            return message
+        setChildPid(os.fork())
+        if (getChildPid() == 0):
+            # We are child
+            runWorker()
+            sys.exit(1) # exit with error code if child exits runWorker
+        else:
+            # Set signal handler for when child dies
+            signal.signal(signal.SIGCHLD, handleChildDied)
+        message["success"] = True
+    elif (action == "kill worker"):
+        if (getChildPid() == -1):
+            message["success"] = False
+            message["message"] = "no current worker"
+            return message
+        os.kill(getChildPid(), signal.SIGKILL)
+        message["success"] = True
+    elif (action == "status"):
+        message["success"] = True
+        status =  "not created" if (getChildPid()==-1) else "created"
+        message["message"] = "The current status of my child" is "<%s>%(status)"
+    else:
+        # DEBUG: Unkown Input
+        message["success"] = False
+        message["message"] = "unknow action: %s"%(action)
+    return message
+# File input 4 is for zygote commands
+try:
+    with open(4, 'r', encoding='utf-8') as inZygote, open(5, 'w', encoding='utf-8') as outZygote:
+        # infinite loop for Zygote to recieve commands
+        # Zygote will not exit on its own
+        # Unless it recieves a SIGTERM or SIGKILL
+        while True:
+            # wait for a single line of input from command pipe
+            json_inp = inZygote.readline().strip()
+            if (json_inp is None or json_inp == ""):
+                continue
+            # unpack the input line as JSON
+            input = json.loads(json_inp)
+            output = parseInput(input)
+            json_output = json.dumps(output)
+            outZygote.write(json_output + '\n')
+            outZygote.flush()
+except Exception as e:
+    jsonDict = {}
+    jsonDict["type"] = 'exit'
+    jsonDict["code"] = 1
+    jsonDict["signal"] = str(e)
+    jsonStr = json.dumps(jsonDict)
+    exitInfoPipe.write(jsonStr + '\n')
+    exitInfoPipe.flush()
