@@ -135,9 +135,9 @@ class ZygoteManager {
         // After 3 seconds, assume creating zygote failed
         this.timeoutID = setTimeout(() => {
             this.state = ERROR;
+            this.timeoutID = null;
             this.createCallBack(new Error("Timeout creating zygote"), this);
             this.createCallBack = null;
-            this.timeoutID = null;
         }, 3000);
     }
 
@@ -163,7 +163,7 @@ class ZygoteManager {
           return callback(new Error('invalid internal PythonCaller state for call()'));
         }
 
-        if (!this._checkState([READY])) {
+        if (!this._checkState([READY], 'run')) {
           return callback(new Error('invalid PythonCaller state'));
         }
 
@@ -194,10 +194,10 @@ class ZygoteManager {
         this.st1dinWrite(callDataString + '\n');
         this.timeoutID = setTimeout(() => {
             if (this.debugMode) {
-              console.log(util.format("[ZygoteManager] Finish %s.%s", fileName, functionName));
+              console.log(util.format("[ZygoteManager] Timeout on %s.%s", fileName, functionName));
             }
-            callback(null, new Output("<stdout>", "<stderr>", "<result>"));
             this.timeoutID = null;
+            callback(null, new Output("<stdout>", "<stderr>", "<result>"));
         }, 1000);
     }
 
@@ -314,7 +314,7 @@ class ZygoteManager {
                 this._exitingMessageHandler(message);
                 break;
               default:
-                this._logError('ZygoteManager: Unsure of how to handle message "' + message['message'] + '" while in state: ' + this.state);
+                this._logError('Unsure of how to handle message "' + message['message']);
                 // In an invalid state
             }
             //this.messageBuffer = '';
@@ -325,59 +325,68 @@ class ZygoteManager {
      * Kill Zygote with request over pipe
      */
     killMyZygote(callback) {
-      if (this.debugMode) {
-          console.log("[ZygoteManager] killing my zygote");
-      }
-      // TODO add check for state=departed
-      if (![INIT, EXITED].includes(this.state)) {
-        return new Error('Cannot kill zygote until worker is killed: ' + String(this.state));
-      }
-      if (!this._checkState([INIT, EXITED])) {
-        return new Error('invalid ZygoteManager state');
-      }
-      this.state = DEPARTING;
+        if (this.debugMode) {
+            console.log("[ZygoteManager] killing my zygote");
+        }
+        // TODO add check for state=departed
+        if (![INIT, EXITED].includes(this.state)) {
+          return new Error('Cannot kill zygote until worker is killed: ' + String(this.state));
+        }
+        if (!this._checkState([INIT, EXITED],'killMyZygote')) {
+          return new Error('invalid ZygoteManager state');
+        }
+        this.state = DEPARTING;
+
+        // TODO add callback
+        this.departingCallback = callback;
+        this.timeoutID = setTimeout(() => {
+            if (this.debugMode) {
+              console.log("[ZygoteManager] timeout while trying to kill zygote");
+            }
+            this.timeoutID = null;
+            // TODO listen for child dieing event instead
+            //this.departingCallback(new Error("timeout while trying to kill zygote"), new Output("<stdout>", "<stderr>", "<result>"));
+            this.departingCallback(null, new Output("<stdout>", "<stderr>", "<result>"));
+            this.departingCallback = null;
+            this.state = DEPARTED;
+        }, 3000);
 
       this.child.stdio[4].write(JSON.stringify({action: 'kill self'}));
       this.child.stdio[4].write('\n');
-
-      // TODO add callback
-      this.departingCallback = callback;
-      this.timeoutID = setTimeout(() => {
-          if (this.debugMode) {
-            console.log("[ZygoteManager] timeout while trying to kill zygote");
-          }
-          callback(null, new Output("<stdout>", "<stderr>", "<result>"));
-          this.timeoutID = null;
-      }, 3000);
     }
 
     /*
      * Kill Zygote with SIGINT
      */
-    forceKillMyZygote() {
-      /*
-      if (![CREATING, INIT, ERROR].includes(this.state)) {
-        return new Error('Cannot force kill zygote until worker is killed: ' + String(this.state));
-      }
-      if (!this._checkState([CREATING, INIT, ERROR])) {
-        return new Error('invalid ZygoteManager state: ' + String(this.state));
-      }
-      */
-      this.state = DEPARTING;
-      this._logError("Forcing death of zygote")
-      this.departingCallback = callback;;
-      this.child.kill('SIGINT');
+    forceKillMyZygote(callback) {
+        /*
+        if (![CREATING, INIT, ERROR].includes(this.state)) {
+          return new Error('Cannot force kill zygote until worker is killed: ' + String(this.state));
+        }
+        if (!this._checkState([CREATING, INIT, ERROR])) {
+          return new Error('invalid ZygoteManager state: ' + String(this.state));
+        }
+        */
+        if (this.debugMode) {
+            console.log("[ZygoteManager] Forcing death of zygote");
+        }
 
-      this.timeoutID = setTimeout(() => {
-          if (this.debugMode) {
-            console.log("[ZygoteManager] timeout while trying to force kill zygote");
-          }
-          callback(null, new Output("<stdout>", "<stderr>", "<result>"));
-          this.timeoutID = null;
-      }, 3000);
+        this.state = DEPARTING;
+        this.departingCallback = callback;
+        this.timeoutID = setTimeout(() => {
+            if (this.debugMode) {
+              console.log("[ZygoteManager] timeout while trying to force kill zygote");
+            }
+            this.state = DEPARTED;
+            this.timeoutID = null;
+            //callback(null, new Output("<stdout>", "<stderr>", "<result>"));
+            this.departingCallback = null;
+        }, 3000);
+
+        this.child.kill('SIGINT');
     }
 
-    _checkState(allowedStates) {
+    _checkState(allowedStates, from=null) {
         if (allowedStates && !allowedStates.includes(this.state)) {
             const allowedStatesList = '[' + _.map(allowedStates, String).join(',') + ']';
             return this._logError('Expected PythonCaller states ' + allowedStatesList + ' but actually have state ' + String(this.state));
@@ -434,16 +443,16 @@ class ZygoteManager {
         }
 
         if (hasZygoteSpawned != null) {
-            if (hasZygoteSpawned && !this.zygoteSpawned) return this._logError('zygoteSpawned should be true');
-            if (!hasZygoteSpawned && this.zygoteSpawned) return this._logError('zygoteSpawned should be false');
+            if (hasZygoteSpawned && !this.zygoteSpawned) return this._logError('zygoteSpawned should be true from ' + from);
+            if (!hasZygoteSpawned && this.zygoteSpawned) return this._logError('zygoteSpawned should be false from ' + from);
         }
         if (hasWorkerSpawned != null) {
-            if (hasWorkerSpawned && !this.workerSpawned) return this._logError('workerSpawned should be true');
-            if (!hasWorkerSpawned && this.workerSpawned) return this._logError('workerSpawned should be false');
+            if (hasWorkerSpawned && !this.workerSpawned) return this._logError('workerSpawned should be true from ' + from);
+            if (!hasWorkerSpawned && this.workerSpawned) return this._logError('workerSpawned should be false from ' + from);
         }
         if (hasTimeout != null) {
-            if (hasTimeout && this.timeoutID == null) return this._logError('timeoutID should not be null');
-            if (!hasTimeout && this.timeoutID != null) return this._logError('timeoutID should be null');
+            if (hasTimeout && this.timeoutID == null) return this._logError('timeoutID should not be null from ' + from);
+            if (!hasTimeout && this.timeoutID != null) return this._logError('timeoutID should be null from ' + from);
         }
 
         return true;
@@ -457,7 +466,7 @@ class ZygoteManager {
     }
 
     _callIsFinished() {
-        if (!this._checkState([IN_CALL])) return;
+        if (!this._checkState([IN_CALL],'_callIsFinished')) return;
         //this._clearTimeout();
         let data, err = null;
         try {
@@ -486,7 +495,7 @@ class ZygoteManager {
           console.log("ZygoteManager: Stderr: " + data);
         }
         // CREATING, INIT and Prepping Are added for zygote
-        this._checkState([CREATING, INIT, PREPPING, IN_CALL, EXITING, EXITED, ERROR]);
+        this._checkState([CREATING, INIT, PREPPING, IN_CALL, EXITING, EXITED, ERROR, DEPARTING], '_handleStderrData');
         if (this.state == IN_CALL) {
             this.outputStderr += data;
             this.outputBoth += data;
@@ -497,7 +506,7 @@ class ZygoteManager {
         if (this.debugMode) {
           console.log("ZygoteManager: Stdout: " + data);
         }
-        this._checkState([IN_CALL, EXITING, EXITED]);
+        this._checkState([IN_CALL, EXITING, EXITED], '_handleStdoutData');
         if (this.state == IN_CALL) {
             this.outputStdout += data;
             this.outputBoth += data;
@@ -508,7 +517,7 @@ class ZygoteManager {
         if (this.debugMode) {
           console.log("ZygoteManager: Stdio3: " + data);
         }
-        this._checkState([IN_CALL, EXITING, EXITED]);
+        this._checkState([IN_CALL, EXITING, EXITED], '_handleStdio3Data');
         if (this.state == IN_CALL) {
             this.outputData += data;
             if (this.outputData.indexOf('\n') >= 0) {
@@ -536,7 +545,7 @@ class ZygoteManager {
         if (![INIT].includes(this.state)) {
             return new Error('invalid internal ZygoteManager state for call()');
         }
-        if (!this._checkState([INIT])) {
+        if (!this._checkState([INIT], 'startWorker')) {
             return new Error('invalid ZygoteManager state');
         }
         this.state = PREPPING;
@@ -568,7 +577,7 @@ class ZygoteManager {
         if (![READY].includes(this.state)) {
             return new Error('invalid internal ZygoteManager state for call()');
         }
-        if (!this._checkState([READY])) {
+        if (!this._checkState([READY], 'killWorker')) {
             return new Error('invalid ZygoteManager state');
         }
         this.state = EXITING;

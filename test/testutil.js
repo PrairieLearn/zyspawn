@@ -47,4 +47,11 @@ function hlt(text, color=null) {
     return color + text + Reset;
 }
 
-module.exports = hlt;
+function timeout(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
+module.exports.timeout = timeout;
+module.exports.hlt = hlt;
