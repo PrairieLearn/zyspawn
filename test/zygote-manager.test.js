@@ -84,3 +84,23 @@ test("Spawn Worker No Timeout Test", async (done) => {
     }, "test/zygotes/spawnWorkerZygote.py");
     await timeout(150);
 });
+
+test("Running Simple Method that times out", async (done) => {
+    await ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("test.py", "summer", [1,2], (err, output) => {
+                  expect(String(err)).toBe('Error: Timed out on calling: "summer" in "test.py"');
+                  zMan.killWorker((err) => {
+                      expect(err).toBeNull();
+                      var resp = zInterface.forceKillMyZygote();
+                      zInterface = null;
+                      done();
+                  });
+              });
+          });
+    }, "test/zygotes/spawnRunTimeoutZygote.py");
+    await timeout(150);
+});

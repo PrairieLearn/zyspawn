@@ -126,8 +126,6 @@ class ZygoteManager {
             this.child.stdio[5].removeAllListeners();
         });
 
-        this.child
-
         // Call status on zygote.py inorder to determine if it is alive
         this.child.stdio[4].write(JSON.stringify({action: 'status'}));
         this.child.stdio[4].write('\n');
@@ -142,7 +140,7 @@ class ZygoteManager {
     }
 
     /**
-     * Run a function in a python script.
+     * Call a function in a python script.
      * @param {String} fileName The file where the function resides
      * @param {String} functionName The function to run
      * @param {object} arg JSON object as arguments for the function
@@ -154,7 +152,7 @@ class ZygoteManager {
      * and this ZygoteManager should no longer be used. Users need to create
      * a new ZygoteManager and restart their work.
      */
-    run(fileName, functionName, arg, callback) {
+    call(fileName, functionName, args, callback) {
         if (this.debugMode) {
           console.log(util.format("[ZygoteManager] Running %s:%s", fileName, functionName));
         }
@@ -190,15 +188,22 @@ class ZygoteManager {
 
         this.lastCallData = callData;
         this.state = IN_CALL;
-        this._checkState();
-        this.st1dinWrite(callDataString + '\n');
         this.timeoutID = setTimeout(() => {
             if (this.debugMode) {
               console.log(util.format("[ZygoteManager] Timeout on %s.%s", fileName, functionName));
             }
+            this.state = READY; // TODO is this what I really want?
             this.timeoutID = null;
-            callback(null, new Output("<stdout>", "<stderr>", "<result>"));
+            this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'), new Output("<stdout>", "<stderr>", "<result>"));
+            this.incallCallBack = null;
         }, 1000);
+
+        const err = this.stdinWrite(callDataString + '\n');
+        if (err != null) {
+            this.incallCallBack(err, null);
+            this._clearTimeout();
+            this.incallCallBack = null;
+        }
     }
 
     _createdMessageHandler(message) {
@@ -603,6 +608,16 @@ class ZygoteManager {
         if (this.debugMode) {
             console.error('[ZygoteManager] in state (' + String(this.state) + ') error: ' + msg);
         }
+    }
+
+    stdinWrite(obj) {
+        if (![IN_CALL].includes(this.state)) {
+            return new Error('invalid internal ZygoteManager state for stdinWrite()');
+        }
+        if (!this._checkState([IN_CALL], 'stdinWrite')) {
+            return new Error('invalid ZygoteManager state');
+        }
+        this.child.stdin.write(obj);
     }
 
     // more private methods ...
