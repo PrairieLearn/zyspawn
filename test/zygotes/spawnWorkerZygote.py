@@ -12,7 +12,7 @@ def parseInput(command_input):
         sys.exit(0);
     elif (action == "start worker"):
         message["success"] = True
-        message["message"] = "Worker has failed to spawn"
+        message["message"] = "Worker has spawned"
     elif (action == "kill worker"):
         message["success"] = True
         message["message"] = "Killed worker"

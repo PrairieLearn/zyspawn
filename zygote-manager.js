@@ -127,9 +127,7 @@ class ZygoteManager {
         });
 
         // Call status on zygote.py inorder to determine if it is alive
-        this.child.stdio[4].write(JSON.stringify({action: 'status'}));
-        this.child.stdio[4].write('\n');
-
+        this.child.stdio[4].write(JSON.stringify({action: 'status'}) + "\n");
         // After 3 seconds, assume creating zygote failed
         this.timeoutID = setTimeout(() => {
             this.state = ERROR;
@@ -233,6 +231,7 @@ class ZygoteManager {
     }
 
     _prepMessageHandler(message) {
+        console.log("PREP HANDLER: " + message);
         if (message['success']) {
           this._clearTimeout();
           this.state = READY;
@@ -297,6 +296,7 @@ class ZygoteManager {
             this.messageBuffer = arr[1];
             const message = JSON.parse(arr[0]);
             //logger.info('ZygoteManager: handling message: ' + message['success']);
+            console.log("Message Recieved: " + arr[0]);
             /*CREATING, INIT, PREPPING, READY, IN_CALL, EXITING, EXITED, DEPARTING, DEPARTED, ERROR*/
             switch (this.state) {
               case CREATING:
@@ -356,8 +356,7 @@ class ZygoteManager {
             this.state = DEPARTED;
         }, 3000);
 
-      this.child.stdio[4].write(JSON.stringify({action: 'kill self'}));
-      this.child.stdio[4].write('\n');
+      this.child.stdio[4].write(JSON.stringify({action: 'kill self'})+'\n');
     }
 
     /*
@@ -543,7 +542,7 @@ class ZygoteManager {
      * a new ZygoteManager and restart their work.
      */
     startWorker(callback) {
-        // TODO Add start Worker code
+        // TODO Add create worker code
         if (this.debugMode) {
             console.log("[ZygoteManager] Starting worker");
         }
@@ -555,15 +554,14 @@ class ZygoteManager {
         }
         this.state = PREPPING;
         this.prepCallBack = callback;
-        this.child.stdio[4].write(JSON.stringify({action: 'start worker'}));
-        this.child.stdio[4].write('\n');
+        this.child.stdio[4].write(JSON.stringify({action: 'create worker'})+'\n');
 
         this.timeoutID = setTimeout(() => {
             this.state = INIT;
             this.timeoutID = null;
             this.prepCallBack(new Error("Timeout starting worker"));
             this.prepCallBack = null;
-        }, 2000);
+        }, 4000);
 
     }
 
@@ -587,8 +585,7 @@ class ZygoteManager {
         }
         this.state = EXITING;
 
-        this.child.stdio[4].write(JSON.stringify({action: 'kill worker'}));
-        this.child.stdio[4].write('\n');
+        this.child.stdio[4].write(JSON.stringify({action: 'kill worker'})+'\n');
         this.exitingCallBack = callback;
 
         this.timeoutID = setTimeout(() => {

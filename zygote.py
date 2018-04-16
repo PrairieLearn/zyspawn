@@ -53,13 +53,13 @@ def waitForChild(signum, frame):
     # with the natural exit with no interuptions.
     if (signum == signal.SIGCHLD):
         jsonDict["type"] = 'exit'
-        jsonDict["code"] = exit_code
+        jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
 
     # Message when the child is interupted!
     else:
         jsonDict["type"] = 'exit'
-        jsonDict["code"] = exit_code
+        jsonDict["code"] = signum
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
@@ -83,6 +83,7 @@ def runWorker():
 
             # Waiting for instructions
             json_inp = sys.stdin.readline().strip()
+            sys.stderr.write("::" + json_inp + "::\n");
             if(json_inp is None or json_inp == ""):
                 continue
 
@@ -212,8 +213,9 @@ def parseInput(command_input):
             runWorker()
             sys.exit(1) # exit with error code if child exits runWorker
         else:
+            pass
             # Set signal handler for when child dies
-            signal.signal(signal.SIGCHLD, handleChildDied)
+            signal.signal(signal.SIGCHLD, waitForChild)
         message["success"] = True
     elif (action == "kill worker"):
         if (getChildPid() == -1):
@@ -225,15 +227,15 @@ def parseInput(command_input):
     elif (action == "status"):
         message["success"] = True
         status =  "not created" if (getChildPid()==-1) else "created"
-        message["message"] = "The current status of my child" is "<%s>%(status)"
+        message["message"] = "The current status of my child is <%s>"%(status)
     elif (action == "workerPid"):
         message["success"] = True
         pid_child = getChildPid()
-        message["message"] = "<%d>%(pid_child)"
+        message["message"] = "%d"%(pid_child)
     else:
         # DEBUG: Unkown Input
         message["success"] = False
-        message["message"] = "unknow action: %s"%(action)
+        message["message"] = "unknown action: \"%s\""%(action)
     return message
 
 # File input 4 is for zygote commands from the manager
@@ -248,10 +250,12 @@ try:
             json_inp = inZygote.readline().strip()
             if (json_inp is None or json_inp == ""):
                 continue
+            sys.stderr.write(json_inp + ";");
             # unpack the input line as JSON
             input = json.loads(json_inp)
             output = parseInput(input)
             json_output = json.dumps(output)
+            sys.stderr.write("[" + json_output + "]");
             outZygote.write(json_output + '\n')
             outZygote.flush()
 except Exception as e:
@@ -262,3 +266,4 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
+    sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->");

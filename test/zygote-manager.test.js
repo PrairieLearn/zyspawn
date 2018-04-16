@@ -13,9 +13,9 @@ afterEach(()=>{
     console.error("Forcing death of zygote");
     var resp = zInterface.forceKillMyZygote();
 });
-
+/*
 test("Spawn Work Zygote Test", async (done) => {
-    await ZygoteManager.create((err, zMan)=>{
+    ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.killMyZygote(()=>{
@@ -24,22 +24,20 @@ test("Spawn Work Zygote Test", async (done) => {
           });
     }, "test/zygotes/spawnWorkZygote.py");
 
-    await timeout(150);
 });
 
 test("Spawn Fail Refuse Zygote Test", async (done) => {
-    await ZygoteManager.create((err, zMan)=>{
+    ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(String(err)).toBe("Error: Timeout creating zygote");
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
           done();
     }, "test/zygotes/spawnFailRefuseZygote.py");
-    await timeout(300);
 });
 
 test("Spawn Fail Message Test", async (done) => {
-    await ZygoteManager.create((err, zMan)=>{
+    ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(String(err)).toBe("Error: _createdMessageHandler Failed with messsage: Failed to create myself...somehow");
           // TODO replace with non-force kill
@@ -47,11 +45,10 @@ test("Spawn Fail Message Test", async (done) => {
           zInterface = null;
           done();
     }, "test/zygotes/spawnFailMessageZygote.py");
-    await timeout(150);
 });
 
 test("Spawn Worker Timeout Test", async (done) => {
-    await ZygoteManager.create((err, zMan)=>{
+    ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err, zyInt)=>{
@@ -63,11 +60,11 @@ test("Spawn Worker Timeout Test", async (done) => {
           //zInterface = null;
           //done();
     }, "test/zygotes/spawnWorkZygote.py");
-    await timeout(150);
+
 });
 
 test("Spawn Worker No Timeout Test", async (done) => {
-    await ZygoteManager.create((err, zMan)=>{
+    ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err, zyInt)=>{
@@ -82,11 +79,11 @@ test("Spawn Worker No Timeout Test", async (done) => {
               });
           });
     }, "test/zygotes/spawnWorkerZygote.py");
-    await timeout(150);
+
 });
 
 test("Running Simple Method that times out", async (done) => {
-    await ZygoteManager.create((err, zMan)=>{
+    ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err, zyInt)=>{
@@ -102,5 +99,24 @@ test("Running Simple Method that times out", async (done) => {
               });
           });
     }, "test/zygotes/spawnRunTimeoutZygote.py");
-    await timeout(150);
+
+});
+*/
+test("Running Run command", async (done) => {
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("simple.py", "add", [1,2], (err, output) => {
+                  expect(String(err)).toBe('Error: Timed out on calling: "summer" in "test.py"');
+                  zMan.killWorker((err) => {
+                      expect(err).toBeNull();
+                      var resp = zInterface.forceKillMyZygote();
+                      zInterface = null;
+                      done();
+                  });
+              });
+          });
+    }, "zygote.py", true);
 });
