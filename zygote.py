@@ -1,8 +1,6 @@
 #TODO
-# 1. Implement The decoder
-# 2. Implement the signal handler
-# 3. Design and write necessary test cases.
-# 4. SIGINT Handler required
+# 1. Design and write necessary test cases.
+# 2. SIGINT Handler required
 
 
 import signal
@@ -18,6 +16,7 @@ matplotlib.use('PDF')
 #   Pipes 4-5 inclusive are set asside for the ZYGOTE
 #   4 is a pipe used by Zygote to get actions from zygote-manager.js
 #   5 is a pipe used by Zygote to respond to zygote-manager.js
+#   6 is a pipe used by Zygote to send exit info about the worker to zygote-manager.js
 
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
@@ -158,7 +157,6 @@ def runWorker():
             outf.flush()
 
 
-saved_path = copy.copy(sys.path)
 
 '''
 Valid messages that could be sent to zygote
@@ -188,6 +186,7 @@ Messages that could be sent from zygote
 }
 '''
 # Takes in a json object for a command to execute, returns message
+# Called in try
 def parseInput(command_input):
     message = {}
 
