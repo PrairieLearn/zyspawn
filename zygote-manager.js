@@ -171,7 +171,9 @@ class ZygoteManager {
         });
 
         const callData = {
-            fileName, functionName, args,
+            file: fileName, 
+            fcn: functionName,
+            args: args,
             cwd: localOptions.cwd,
             paths: localOptions.paths,
         };
@@ -192,7 +194,7 @@ class ZygoteManager {
             }
             this.state = READY; // TODO is this what I really want?
             this.timeoutID = null;
-            this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'), new Output("<stdout>", "<stderr>", "<result>"));
+            this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'));
             this.incallCallBack = null;
         }, 1000);
 
@@ -351,7 +353,7 @@ class ZygoteManager {
             this.timeoutID = null;
             // TODO listen for child dieing event instead
             //this.departingCallback(new Error("timeout while trying to kill zygote"), new Output("<stdout>", "<stderr>", "<result>"));
-            this.departingCallback(null, new Output("<stdout>", "<stderr>", "<result>"));
+            this.departingCallback(new Error("timeout while trying to kill zygote"));
             this.departingCallback = null;
             this.state = DEPARTED;
         }, 3000);
