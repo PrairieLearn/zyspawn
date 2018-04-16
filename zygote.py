@@ -21,7 +21,6 @@ matplotlib.use('PDF')
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 
-saved_path = copy.copy(sys.path)
 
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
@@ -156,13 +155,14 @@ def runWorker():
             outf.write("\n");
             outf.flush()
 
-
+saved_path = copy.copy(sys.path)
 
 '''
 Valid messages that could be sent to zygote
 {"action":"create worker"}
 {"action":"kill worker"}
 {"action":"status"}
+{"action":"getChildPid"}
 
 Messages that could be sent from zygote
 {
@@ -183,6 +183,10 @@ Messages that could be sent from zygote
 {
 "success":False,
 "message":"unknow command: <command>"
+}
+{
+"success":True
+"message":"<pid_child>"
 }
 '''
 # Takes in a json object for a command to execute, returns message
@@ -231,7 +235,9 @@ def parseInput(command_input):
         message["success"] = False
         message["message"] = "unknow action: %s"%(action)
     return message
-# File input 4 is for zygote commands
+
+# File input 4 is for zygote commands from the manager
+# File input 5 is for messegages returned for the commands passed through file input 4
 try:
     with open(4, 'r', encoding='utf-8') as inZygote, open(5, 'w', encoding='utf-8') as outZygote:
         # infinite loop for Zygote to recieve commands
