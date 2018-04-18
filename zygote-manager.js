@@ -162,7 +162,9 @@ class ZygoteManager {
         if (!this._checkState([READY], 'run')) {
           return callback(new Error('invalid PythonCaller state'));
         }
-        var paths = fileName.split(path.sep);
+        // TODO add a check for relative vs absolute file paths
+        // for relative paths
+        var filepath = path.join(__dirname, fileName);
         /*
         // TODO allow user to specify there own options
         const localOptions = _.defaults(null, {
@@ -172,10 +174,10 @@ class ZygoteManager {
         });
         */
         const callData = {
-            file: path.basename(fileName),
+            file: path.basename(filepath),
             fcn: functionName,
             args: args,
-            cwd: path.dirname(fileName),
+            cwd: path.dirname(filepath),
             paths: [],
         };
         const callDataString = JSON.stringify(callData);

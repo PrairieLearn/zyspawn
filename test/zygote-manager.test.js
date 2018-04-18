@@ -109,7 +109,7 @@ test("Running Run on Bad method", async (done) => {
           expect(err).toBeNull();
           zMan.startWorker((err, zyInt)=>{
               expect(err).toBeNull();
-              zMan.call("/mnt/d/PrarierLearn/zyspawn/test/python-scripts/simple", "add", [1,2], (err, output) => {
+              zMan.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
                   expect(err).toBeNull();
                   expect(output.result["val"]).toBe(3);
                   console.log(err);
