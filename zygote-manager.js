@@ -182,7 +182,6 @@ class ZygoteManager {
         };
         const callDataString = JSON.stringify(callData);
         this.incallCallBack = callback;
-        //this.timeoutID = setTimeout(this._timeout.bind(this), localOptions.timeout);
 
         this.outputStdout = '';
         this.outputStderr = '';
@@ -195,11 +194,11 @@ class ZygoteManager {
             if (this.debugMode) {
               console.log(util.format("[ZygoteManager] Timeout on %s.%s", fileName, functionName));
             }
-            this.state = READY; // TODO is this what I really want?
+            this.state = ERROR; // TODO is this what I really want?
             this.timeoutID = null;
             this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'));
             this.incallCallBack = null;
-        }, 1000);
+        }, 3000);
 
         const err = this.stdinWrite(callDataString + '\n');
         /*
@@ -404,6 +403,7 @@ class ZygoteManager {
 
         /*CREATING, INIT, PREPPING, READY, IN_CALL, EXITING, EXITED, DEPARTING, DEPARTED, ERROR*/
         let hasZygoteSpawned, hasWorkerSpawned, hasTimeout;
+        let hasInCallBack;
         switch (this.state) {
           case CREATING:
             hasZygoteSpawned = false;
@@ -429,6 +429,7 @@ class ZygoteManager {
             hasZygoteSpawned = true;
             hasWorkerSpawned = true;
             hasTimeout = true;
+            hasInCallBack = true;
             break;
           case EXITING:
             hasZygoteSpawned = true;
@@ -464,21 +465,19 @@ class ZygoteManager {
             if (hasTimeout && this.timeoutID == null) return this._logError('timeoutID should not be null from ' + from);
             if (!hasTimeout && this.timeoutID != null) return this._logError('timeoutID should be null from ' + from);
         }
+        if (hasInCallBack != null) {
+            if (hasInCallBack && this.incallCallBack == null) return this._logError('incallCallBack should not be null from ' + from);
+            if (!hasInCallBack && this.incallCallBack != null) return this._logError('incallCallBack should be null from ' + from);
+        }
 
         return true;
     }
 
-    _doneCall(err, output) {
-        if (err) {
-          // TODO implement this
-          //err.data = this._errorData();
-        }
-        this.incallCallBack(err, output);
-        this.incallCallBack = null;
-    }
-
     _callIsFinished() {
-        if (!this._checkState([IN_CALL],'_callIsFinished')) return;
+        if (!this._checkState([IN_CALL],'_callIsFinished')) {
+            // TODO callback function
+            return;
+        }
 
         this._clearTimeout();
         let data, err = null;
@@ -491,14 +490,24 @@ class ZygoteManager {
         if (err) {
             this.state = EXITING;
             this.killWorker();
-            this._doneCall(err, data, null);
+            this._logError(String(err));
+            this.incallCallBack(err, new Output(null, null, data));
+            this.incallCallBack = null;
         } else {
             this.state = READY;
             if (data.present) {
-                this._doneCall(null, new Output(null, null, data));
+                console.log("SETTING____INCALLCALLBACK_TO_NULL: " + String(this.state));
+                const c = this.incallCallBack;
+                this.incallCallBack = null;
+                // WHY DO I NEED TO DO THIS???
+                c(null, new Output(null, null, data));
             } else {
+                this.state = READY;
                 // TODO this is not how this should be handled right?
-                this._doneCall(new FunctionMissingError('Function not found in module'), null);
+                this.incallCallBack(
+                  new FunctionMissingError('Function not found in module')
+                , null);
+                this.incallCallBack = null;
             }
         }
     }
@@ -606,6 +615,9 @@ class ZygoteManager {
     }
 
     _clearTimeout() {
+        if (this.timeoutID == null) {
+            this._logError("cannot clear timeout with no active timeout");
+        }
         clearTimeout(this.timeoutID);
         this.timeoutID = null;
     }

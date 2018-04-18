@@ -101,8 +101,8 @@ test("Running Simple Method that times out", async (done) => {
     }, "test/zygotes/spawnRunTimeoutZygote.py");
 
 });
-*/
-test("Running Run on Bad method", async (done) => {
+
+test("Zygote call on add python", async (done) => {
     jest.setTimeout(1000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
@@ -112,13 +112,37 @@ test("Running Run on Bad method", async (done) => {
               zMan.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
                   expect(err).toBeNull();
                   expect(output.result["val"]).toBe(3);
-                  console.log(err);
-                  console.log(output)
                   zMan.killWorker((err) => {
-                      //   expect(err).toBeNull();
+                        expect(err).toBeNull();
                         var resp = zInterface.forceKillMyZygote();
                         zInterface = null;
                         done();
+                  });
+              });
+          });
+    }, "zygote.py", true);
+});
+*/
+test("Zygote call on add python multiple", async (done) => {
+    jest.setTimeout(10000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+                  expect(err).toBeNull();
+                  expect(output.result["val"]).toBe(3);
+                  zMan.call("test/python-scripts/simple", "add", [-10,10], (err, output) => {
+                      expect(err).toBeNull();
+                      expect(output.result["val"]).toBe(0);
+                      zMan.killWorker((err) => {
+                            console.log("Finishing");
+                            expect(err).toBeNull();
+                            var resp = zInterface.forceKillMyZygote();
+                            zInterface = null;
+                            done();
+                      });
                   });
               });
           });
