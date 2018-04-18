@@ -102,22 +102,23 @@ test("Running Simple Method that times out", async (done) => {
 
 });
 */
-test("Running Run command", async (done) => {
+test("Running Run on Bad method", async (done) => {
+    jest.setTimeout(1000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err, zyInt)=>{
               expect(err).toBeNull();
-              zMan.call("./python-scripts/simple.py", "add", [1,2], (err, output) => {
-                //   expect(String(err)).toBe('Error: Timed out on calling: "summer" in "test.py"');
-                // expect(output.result).toBe(3);
-                console.log(err);
-                console.log(output)  
-                zMan.killWorker((err) => {
-                    //   expect(err).toBeNull();
-                      var resp = zInterface.forceKillMyZygote();
-                      zInterface = null;
-                      done();
+              zMan.call("/mnt/d/PrarierLearn/zyspawn/test/python-scripts/simple", "add", [1,2], (err, output) => {
+                  expect(err).toBeNull();
+                  expect(output.result["val"]).toBe(3);
+                  console.log(err);
+                  console.log(output)
+                  zMan.killWorker((err) => {
+                      //   expect(err).toBeNull();
+                        var resp = zInterface.forceKillMyZygote();
+                        zInterface = null;
+                        done();
                   });
               });
           });

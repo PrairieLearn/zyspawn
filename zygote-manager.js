@@ -162,20 +162,21 @@ class ZygoteManager {
         if (!this._checkState([READY], 'run')) {
           return callback(new Error('invalid PythonCaller state'));
         }
-
+        var paths = fileName.split(path.sep);
+        /*
         // TODO allow user to specify there own options
         const localOptions = _.defaults(null, {
             cwd: __dirname,
-            paths: [],
+            paths: paths,
             timeout: 20000, // FIXME: this number (equivalent to 20 seconds) should not have to be this high
         });
-
+        */
         const callData = {
-            file: fileName, 
+            file: path.basename(fileName),
             fcn: functionName,
             args: args,
-            cwd: localOptions.cwd,
-            paths: localOptions.paths,
+            cwd: path.dirname(fileName),
+            paths: [],
         };
         const callDataString = JSON.stringify(callData);
         this.incallCallBack = callback;
@@ -199,11 +200,12 @@ class ZygoteManager {
         }, 1000);
 
         const err = this.stdinWrite(callDataString + '\n');
+        /*
         if (err != null) {
             this.incallCallBack(err, null);
             this._clearTimeout();
             this.incallCallBack = null;
-        }
+        }*/
     }
 
     _createdMessageHandler(message) {
@@ -340,7 +342,7 @@ class ZygoteManager {
           return new Error('Cannot kill zygote until worker is killed: ' + String(this.state));
         }
         if (!this._checkState([INIT, EXITED],'killMyZygote')) {
-          return new Error('invalid ZygoteManager state');
+          return new Error('invalid ZygoteManager state for killMyZygote');
         }
         this.state = DEPARTING;
 
@@ -370,7 +372,7 @@ class ZygoteManager {
           return new Error('Cannot force kill zygote until worker is killed: ' + String(this.state));
         }
         if (!this._checkState([CREATING, INIT, ERROR])) {
-          return new Error('invalid ZygoteManager state: ' + String(this.state));
+          return new Error('invalid ZygoteManager for forceKillMyZygote');
         }
         */
         if (this.debugMode) {
@@ -464,16 +466,19 @@ class ZygoteManager {
         return true;
     }
 
-    _doneCall(err, data, output) {
-        if (err) err.data = this._errorData();
-        const c = this.incallCallBack;
+    _doneCall(err, output) {
+        if (err) {
+          // TODO implement this
+          //err.data = this._errorData();
+        }
+        this.incallCallBack(err, output);
         this.incallCallBack = null;
-        c(err, data, output);
     }
 
     _callIsFinished() {
         if (!this._checkState([IN_CALL],'_callIsFinished')) return;
-        //this._clearTimeout();
+
+        this._clearTimeout();
         let data, err = null;
         try {
             data = JSON.parse(this.outputData);
@@ -484,14 +489,14 @@ class ZygoteManager {
         if (err) {
             this.state = EXITING;
             this.killWorker();
-            this._doneCall(err);
+            this._doneCall(err, data, null);
         } else {
             this.state = READY;
             if (data.present) {
-                this._doneCall(null, data.val, this.outputBoth);
+                this._doneCall(null, new Output(null, null, data));
             } else {
                 // TODO this is not how this should be handled right?
-                this._doneCall(new FunctionMissingError('Function not found in module'));
+                this._doneCall(new FunctionMissingError('Function not found in module'), null);
             }
         }
     }
@@ -552,7 +557,7 @@ class ZygoteManager {
             return new Error('invalid internal ZygoteManager state for call()');
         }
         if (!this._checkState([INIT], 'startWorker')) {
-            return new Error('invalid ZygoteManager state');
+            return new Error('invalid ZygoteManager state for startWorker');
         }
         this.state = PREPPING;
         this.prepCallBack = callback;
@@ -583,7 +588,7 @@ class ZygoteManager {
             return new Error('invalid internal ZygoteManager state for call()');
         }
         if (!this._checkState([READY], 'killWorker')) {
-            return new Error('invalid ZygoteManager state');
+            return new Error('invalid ZygoteManager state for killWorker');
         }
         this.state = EXITING;
 
@@ -605,7 +610,7 @@ class ZygoteManager {
 
     _logError(msg) {
         if (this.debugMode) {
-            console.error('[ZygoteManager] in state (' + String(this.state) + ') error: ' + msg);
+            console.error('[ZygoteManager error] in state (' + String(this.state) + ') error: ' + msg);
         }
     }
 
@@ -614,7 +619,7 @@ class ZygoteManager {
             return new Error('invalid internal ZygoteManager state for stdinWrite()');
         }
         if (!this._checkState([IN_CALL], 'stdinWrite')) {
-            return new Error('invalid ZygoteManager state');
+            return new Error('invalid ZygoteManager state for stdinWrite');
         }
         this.child.stdin.write(obj);
     }
@@ -645,6 +650,5 @@ class Output {
         );
     }
 }
-
 
 module.exports = ZygoteManager;

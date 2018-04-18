@@ -83,9 +83,9 @@ def runWorker():
 
             # Waiting for instructions
             json_inp = sys.stdin.readline().strip()
-            sys.stderr.write("::" + json_inp + "::\n");
             if(json_inp is None or json_inp == ""):
                 continue
+            sys.stderr.write("::" + json_inp + "::\n");
 
             # Executing instructions after detected within pipe.
 
@@ -106,7 +106,7 @@ def runWorker():
 
             # change to the desired working directory
             os.chdir(cwd)
-
+            #sys.stderr.write("Dir: " + os.__dirname + ">>");
             # load the "file" as a module
             mod = importlib.import_module(file)
 
