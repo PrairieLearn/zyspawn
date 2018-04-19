@@ -205,7 +205,7 @@ def parseInput(command_input):
         if (getChildPid() != -1):
             # we already have a child
             message["success"] = False
-            message["message"] = "already contains worker"
+            message["message"] = "zygote already contains worker"
             return message
         setChildPid(os.fork())
         if (getChildPid() == 0):
