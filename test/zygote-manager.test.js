@@ -13,6 +13,7 @@ afterEach(()=>{
     console.error("Forcing death of zygote");
     var resp = zInterface.forceKillMyZygote();
 });
+
 test("Spawn Work Zygote Test", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
