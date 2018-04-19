@@ -20,12 +20,14 @@ const getRandomInt = function(max) {
 }
 
 const roundCheck = function(zMan, done, rounds) {
-    if (rounds == 0) {
+    if (rounds <= 0) {
         zMan.killWorker((err) => {
               expect(err).toBeNull();
               var resp = zInterface.forceKillMyZygote();
               zInterface = null;
-              done();
+              if (done != null) {
+                  done();
+              }
         });
     } else {
       var method = getRandomInt(3);
@@ -64,7 +66,18 @@ test("Stress test 1 round", async (done) => {
           expect(err).toBeNull();
           zMan.startWorker((err, zyInt)=>{
               expect(err).toBeNull();
-              roundCheck(zMan, done, 1000);
+              roundCheck(zMan, done, 1);
+          });
+    });
+});
+
+test("Stress test 100 round", async (done) => {
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              roundCheck(zMan, done, 100);
           });
     });
 });
@@ -89,4 +102,24 @@ test("Stress test over 9999 rounds", async (done) => {
               roundCheck(zMan, done, 9999);
           });
     });
+});
+
+const createRoundCheck = function(done, rounds) {
+    if (rounds <= 0) {
+        done();
+        return;
+    }
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              roundCheck(zMan, ()=>{createRoundCheck(done, rounds-1)}, 1);
+          });
+    });
+};
+
+test("Stress test no reuse of zygote for 10 rounds", async (done) => {
+    jest.setTimeout(10000);
+    createRoundCheck(done, 10);
 });
