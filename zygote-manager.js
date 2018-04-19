@@ -594,11 +594,11 @@ class ZygoteManager {
         if (this.debugMode) {
             console.log("[ZygoteManager] creating worker");
         }
-        if (![INIT].includes(this.state)) {
+        if (![INIT, EXITED].includes(this.state)) {
             callback(new Error('invalid internal ZygoteManager state for startWorker()'));
             return;
         }
-        if (!this._checkState([INIT], 'startWorker')) {
+        if (!this._checkState([INIT, EXITED], 'startWorker')) {
             callback(new Error('invalid ZygoteManager state for startWorker()'));
             return;
         }
