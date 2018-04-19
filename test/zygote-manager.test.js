@@ -177,3 +177,23 @@ test("Zygote call on add python multiple files", async (done) => {
           });
     });
 });
+
+test("Zygote call on non existing function", async (done) => {
+    jest.setTimeout(10000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("test/python-scripts/simple", "nonexsist", [10,2], (err, output) => {
+                  expect(String(err)).toBe("FunctionMissingError: Function not found in module");
+                  zMan.killWorker((err) => {
+                        expect(err).toBeNull();
+                        var resp = zInterface.forceKillMyZygote();
+                        zInterface = null;
+                        done();
+                  });
+              });
+          });
+    });
+});
