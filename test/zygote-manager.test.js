@@ -13,12 +13,12 @@ afterEach(()=>{
     console.error("Forcing death of zygote");
     var resp = zInterface.forceKillMyZygote();
 });
-/*
 test("Spawn Work Zygote Test", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.killMyZygote(()=>{
+          zMan.killMyZygote((err)=>{
+              expect(err).toBeNull();
               zInterface = null;
               done();
           });
@@ -83,6 +83,7 @@ test("Spawn Worker No Timeout Test", async (done) => {
 });
 
 test("Running Simple Method that times out", async (done) => {
+    jest.setTimeout(6000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
@@ -120,10 +121,10 @@ test("Zygote call on add python", async (done) => {
                   });
               });
           });
-    }, "zygote.py", true);
+    });
 });
-*/
-test("Zygote call on add python multiple", async (done) => {
+
+test("Zygote call on python multiple methods", async (done) => {
     jest.setTimeout(10000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
@@ -133,11 +134,10 @@ test("Zygote call on add python multiple", async (done) => {
               zMan.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
                   expect(err).toBeNull();
                   expect(output.result["val"]).toBe(3);
-                  zMan.call("test/python-scripts/simple", "add", [-10,10], (err, output) => {
+                  zMan.call("test/python-scripts/simple", "add", [-11,10], (err, output) => {
                       expect(err).toBeNull();
-                      expect(output.result["val"]).toBe(0);
+                      expect(output.result["val"]).toBe(-1);
                       zMan.killWorker((err) => {
-                            console.log("Finishing");
                             expect(err).toBeNull();
                             var resp = zInterface.forceKillMyZygote();
                             zInterface = null;
@@ -146,5 +146,34 @@ test("Zygote call on add python multiple", async (done) => {
                   });
               });
           });
-    }, "zygote.py", true);
+    });
+});
+
+test("Zygote call on add python multiple files", async (done) => {
+    jest.setTimeout(10000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("test/python-scripts/simple", "add", [10,2], (err, output) => {
+                  expect(err).toBeNull();
+                  expect(output.result["val"]).toBe(12);
+                  zMan.call("test/python-scripts/strings", "count", ["ababab","ab"], (err, output) => {
+                      expect(err).toBeNull();
+                      expect(output.result["val"]).toBe(3);
+                      zMan.call("test/python-scripts/strings", "substring", ["laughter",2,5], (err, output) => {
+                          expect(err).toBeNull();
+                          expect(output.result["val"]).toBe("ugh");
+                          zMan.killWorker((err) => {
+                                expect(err).toBeNull();
+                                var resp = zInterface.forceKillMyZygote();
+                                zInterface = null;
+                                done();
+                          });
+                      });
+                  });
+              });
+          });
+    });
 });

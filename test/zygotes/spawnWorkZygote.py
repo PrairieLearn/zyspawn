@@ -10,7 +10,7 @@ def parseInput(command_input):
         pass
     elif (action == "kill self"):
         sys.exit(0);
-    elif (action == "start worker"):
+    elif (action == "create worker"):
         message = None
     return message
 

@@ -224,6 +224,9 @@ def parseInput(command_input):
             return message
         os.kill(getChildPid(), signal.SIGKILL)
         message["success"] = True
+    elif (action == "kill self"):
+        # TODO ADD ADDITIONAL LOGIC
+        sys.exit(0);
     elif (action == "status"):
         message["success"] = True
         status =  "not created" if (getChildPid()==-1) else "created"
