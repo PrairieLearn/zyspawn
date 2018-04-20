@@ -230,6 +230,7 @@ def parseInput(command_input):
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
         message["success"] = True
+        setChildPid(-1)
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
         sys.exit(0);
