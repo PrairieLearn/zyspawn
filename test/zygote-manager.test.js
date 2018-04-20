@@ -1,7 +1,6 @@
 const util = require('util');
 const ZygoteManager = require('../zygote-manager');
-const {hlt} = require('./testutil');
-const {timeout} = require('./testutil');
+const {timeout} = require('./test-util');
 
 var zInterface = null;
 var zErr = null;
