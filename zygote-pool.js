@@ -2,7 +2,7 @@
  * @fileoverview
  * This module manages a pool of python zygotes and includes API to use them.
  * 
- * Usage:
+ * Usage: // TODO need to be updated
  *  const {ZygotePool} = require('zygote-pool');
  * 
  *  var zygotePool = new ZygotePool(10);
@@ -41,6 +41,7 @@
  * 
  */
 const _ = require('lodash');
+const assert = require('assert');
 const BlockingQueue = require('./blocking-queue');
 const ZygoteManager = require('./zygote-manager');
 
@@ -59,6 +60,7 @@ class ZygotePool {
     constructor(zygoteNum, callback) {
         callback = callback || DEFAULT_CALLBACK;
 
+        this._isShutdown = false;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
 
@@ -85,6 +87,32 @@ class ZygotePool {
     }
 
     /**
+     * Shutdown all zygotes in this pool.
+     * @param {function(Error)} callback Called after shutdown.
+     */
+    shutdown(callback) {
+        callback = callback || DEFAULT_CALLBACK;
+
+        this._isShutdown = true;
+        this._idleZygoteManagerQueue.clearWaiting(new Error());
+
+        var jobs = [];
+        this._zygoteManagerList.forEach((zygoteManager) => {
+            jobs.push(new Promise((resolve) => {
+                zygoteManager.shutdown((err) => { resolve(err); });
+            }));
+        });
+
+        Promise.all(jobs).then((errs) => {
+            _.pull(errs, null);
+            callback(errs.length == 0 ? null : errs);
+            // TODO
+            // need to define error object
+            // kill live zygotes when error happens?
+        });
+    }
+
+    /**
      * Get number of idle zygotes.
      * @return {number} Number of idle zygotes
      */
@@ -96,10 +124,11 @@ class ZygotePool {
      * Request a ZygoteIterface to use (but Zygote will not be allocated until
      * the first time of calling ZygoteIterface.run()). See implementation of
      * ZygoteInterface and allocateZygoteManager() below.
-     * @return {ZygoteInterface} An interface to use the zygote.
+     * @return {ZygoteInterface} An interface to use the zygote. Return null
+     *                           when the ZygotePool is shutdown.
      */
     request() {
-        return new ZygoteInterface(this);
+        return this._isShutdown ? null : new ZygoteInterface(this);
     }
 
     /**
@@ -109,27 +138,33 @@ class ZygotePool {
      *                                   or error happens
      */
     _allocateZygoteManager(zygoteInterface, callback) {
-        this._idleZygoteManagerQueue.get((zygoteManager) => {
-            zygoteManager.startWorker((err) => {
-                if (err) {
-                    // TODO create a new Zygote?
-                    callback(err); // do we need to pass the error outside
-                } else {
-                    zygoteInterface._initialize(zygoteManager, (callback) => {
-                        // TODO check if the zygote is still healthy
-                        zygoteManager.killWorker((err) => {
-                            if (err) {
-                                // TODO create a new Zygote?
-                                callback(err);
-                            } else {
-                                this._idleZygoteManagerQueue.put(zygoteManager);
-                                callback(null);
-                            }
+        assert(!this._isShutdown);
+
+        this._idleZygoteManagerQueue.get((err, zygoteManager) => {
+            if (err) {
+                callback(err);
+            } else {
+                zygoteManager.startWorker((err) => {
+                    if (err) {
+                        // TODO create a new Zygote?
+                        callback(err); // do we need to pass the error outside
+                    } else {
+                        zygoteInterface._initialize(zygoteManager, (callback) => {
+                            // TODO check if the zygote is still healthy
+                            zygoteManager.killWorker((err) => {
+                                if (err) {
+                                    // TODO create a new Zygote?
+                                    callback(err);
+                                } else {
+                                    this._idleZygoteManagerQueue.put(zygoteManager);
+                                    callback(null);
+                                }
+                            });
                         });
-                    });
-                    callback(null);
-                }
-            });
+                        callback(null);
+                    }
+                });
+            }
         });
     }
 }

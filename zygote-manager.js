@@ -213,6 +213,20 @@ class ZygoteManager {
         }*/
     }
 
+    /**
+     * Shutdown the zygote.
+     * @param {function(Error)} callback Called after shutdown.
+     */
+    shutdown(callback) {
+        this.killMyZygote((err)=>{
+            if (err) {
+                this.forceKillMyZygote(callback);
+            } else {
+                callback(null);
+            }
+        });
+    }
+
     _createdMessageHandler(message) {
         if (message['success']) {
           this._clearTimeout();
