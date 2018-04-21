@@ -63,7 +63,7 @@ test("Stress test 1 round", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               roundCheck(zMan, done, 1);
           });
@@ -75,7 +75,7 @@ test("Stress test 100 round", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               roundCheck(zMan, done, 100);
           });
@@ -87,7 +87,7 @@ test("Stress test 1000 rounds", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               roundCheck(zMan, done, 1000);
           });
@@ -99,13 +99,25 @@ test("Stress test over 9000 rounds", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               roundCheck(zMan, done, 9999);
           });
     });
 });
-
+/*
+test("Stress test 1,000,000 rounds", async (done) => {
+    jest.setTimeout(1000000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err)=>{
+              expect(err).toBeNull();
+              roundCheck(zMan, done, 1000000);
+          });
+    });
+});
+*/
 const createRoundCheck = function(done, rounds) {
     if (rounds <= 0) {
         done();
@@ -114,7 +126,7 @@ const createRoundCheck = function(done, rounds) {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               roundCheck(zMan, ()=>{createRoundCheck(done, rounds-1)}, 1);
           });

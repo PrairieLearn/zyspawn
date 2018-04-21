@@ -158,7 +158,7 @@ class ZygoteManager {
         }
 
         if (![READY].includes(this.state)) {
-            callback(new Error('Invalid internal ZygoteManager state for call()'));
+            callback(new Error('Invalid internal ZygoteManager state for call(): ' + String(this.state)));
             return;
         }
 
