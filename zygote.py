@@ -2,6 +2,8 @@
 # 1. Design and write necessary test cases.
 # 2. SIGINT Handler required
 
+# Points of discussion:
+# 1. How the zygote-manager is going to inform the zygote to terminate itself.
 
 import signal
 import sys, os, json, importlib, copy, base64, io, matplotlib
@@ -34,8 +36,6 @@ def setChildPid(pid):
     childPid = pid
 
 #   This function waits for it's child to complete it's assigned task.
-#   Returns zero upon successful completion by the child
-#   Returns -1 otherwise
 
 def waitForChild(signum, frame):
     global exitInfoPipe
@@ -58,13 +58,36 @@ def waitForChild(signum, frame):
 
     # Message when the child is interupted!
     else:
-        jsonDict["type"] = 'exit'
+        jsonDict["type"] = 'Child_Paused'
         jsonDict["code"] = signum
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
+
+#   Signal handler for SIGINTs' sent in from the zygote-manager.
+#   Ensures the child process is killed off before the the program itself is teminated
+
+def sigintHandler(signum, frame):
+    global exitInfoPipe
+    pid = getChildPid()
+
+    jsonDict = {}
+
+    if(pid != -1){
+        os.kill(getChildPid(), signal.SIGKILL)
+    }
+
+    jsonDict["type"] = 'Zygote inturupt!'
+    jsonDict["code"] = signum
+    jsonDict["signal"] = "SIGINT"
+
+    jsonStr = json.dumps(jsonDict)
+    exitInfoPipe.write(jsonStr + '\n')
+    exitInfoPipe.flush()
+
+    sys.exit(-1)
 
 
 # Function name is self explanitory
@@ -216,6 +239,7 @@ def parseInput(command_input):
             pass
             # Set signal handler for when child dies
             signal.signal(signal.SIGCHLD, waitForChild)
+            signal.signal(signal.SIGINT, sigintHandler)
         message["success"] = True
     elif (action == "kill worker"):
         if (getChildPid() == -1):
