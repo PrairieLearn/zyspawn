@@ -1,9 +1,10 @@
 #TODO
 # 1. Design and write necessary test cases.
-# 2. SIGINT Handler required
+
 
 # Points of discussion:
 # 1. How the zygote-manager is going to inform the zygote to terminate itself.
+# 2. Pipe 6 with the debug info.
 
 import signal
 import sys, os, json, importlib, copy, base64, io, matplotlib
@@ -55,8 +56,7 @@ def waitForChild(signum, frame):
         jsonDict["type"] = 'exit'
         jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
-        if getChildPid() != -1:
-            setChildPid(-1);
+        setChildPid(-1)
 
     # Message when the child is interupted!
     else:
@@ -78,9 +78,8 @@ def sigintHandler(signum, frame):
 
     jsonDict = {}
 
-    if(pid != -1){
+    if(pid != -1):
         os.kill(getChildPid(), signal.SIGKILL)
-    }
 
     jsonDict["type"] = 'Zygote inturupt!'
     jsonDict["code"] = signum
