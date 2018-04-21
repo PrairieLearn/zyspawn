@@ -71,6 +71,8 @@ class ZygotePool {
                     if (!err) {
                         this._zygoteManagerList.push(zygoteManager);
                         this._idleZygoteManagerQueue.put(zygoteManager);
+                        // TODO need to consider the case of shutdown before
+                        // before creating finished
                     }
                     resolve(err);
                 });
@@ -191,7 +193,7 @@ class ZygoteInterface {
     constructor(zygotePool) {
         this._zygotePool = zygotePool;
         this._zygoteManager = null;
-        this._done = () => {};
+        this._done = (callback) => { callback(null); };
     }
     
     /**
@@ -216,7 +218,7 @@ class ZygoteInterface {
      *      stderr(String), result(object)
      */
     call(fileName, functionName, arg, callback) {
-        if (this._zygoteManager == null) {
+        if (this._zygoteManager === null) {
             this._zygotePool._allocateZygoteManager(this, (err) => {
                 if (err) { // Failure in ZygoteManager.startWorker()
                     callback(err);
