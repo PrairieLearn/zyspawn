@@ -1,14 +1,14 @@
 /**
  * @fileoverview
  * This module manages a pool of python zygotes and includes API to use them.
- * 
+ *
  * Usage:
  *  const {ZygotePool} = require('zygote-pool');
- * 
+ *
  *  var zygotePool = new ZygotePool(10);
- * 
+ *
  *  var zygoteInterface = zygotePool.request();
- * 
+ *
  *  zygoteInterface.call(
  *      "file-name",
  *      "function-name",
@@ -27,18 +27,18 @@
  *          }
  *      }
  *  );
- * 
+ *
  * Design:
  *  TODO
- * 
+ *
  * Error handling:
  *  TODO
- * 
+ *
  * Dependencies:
  *  ./blocking-queue.js
  *  ./zygote-manager.js
  *  ./zygote.py
- * 
+ *
  */
 const _ = require('lodash');
 const BlockingQueue = require('./blocking-queue');
@@ -58,6 +58,7 @@ class ZygotePool {
      */
     constructor(zygoteNum, callback) {
         callback = callback || DEFAULT_CALLBACK;
+        this._inShutdown = false;
 
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
@@ -83,6 +84,29 @@ class ZygotePool {
             // kill live zygotes when error happens?
         });
     }
+    /**
+     * Shutdown all zygotes in this pool
+     */
+    shutdown(done) {
+        this._inShutdown = true;
+        var i = 0;
+        const iteration = () => {
+            if (i >= this._zygoteManagerList.length) {
+                done();
+            } else {
+              this._zygoteManagerList[i].killMyZygote((err)=>{
+                  i++;
+                  if (err != null) {
+                      this._zygoteManagerList[i].forceKillMyZygote(iteration);
+                      this._idleZygoteManagerQueue.clear();
+                  } else {
+                      iteration();
+                  }
+              });
+            }
+        };
+        iteration();
+    }
 
     /**
      * Get number of idle zygotes.
@@ -99,7 +123,11 @@ class ZygotePool {
      * @return {ZygoteInterface} An interface to use the zygote.
      */
     request() {
-        return new ZygoteInterface(this);
+        if (this._inShutdown == false) {
+            return new ZygoteInterface(this);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -109,6 +137,10 @@ class ZygotePool {
      *                                   or error happens
      */
     _allocateZygoteManager(zygoteInterface, callback) {
+        if (this._inShutdown) {
+            callback(new Error("Zygote Pool is in shutdown mode"));
+            return;
+        }
         this._idleZygoteManagerQueue.get((zygoteManager) => {
             zygoteManager.startWorker((err) => {
                 if (err) {
@@ -139,7 +171,7 @@ class ZygotePool {
  * A handle object representing a working zygote and hiding implementation
  * details. It wraps a ZygoteManager internally and is registered with a
  * done() function which releases the resource.
- * 
+ *
  * Notice:
  * Users must call done() method to release resources after finishing
  * their work.
@@ -148,9 +180,9 @@ class ZygoteInterface {
     constructor(zygotePool) {
         this._zygotePool = zygotePool;
         this._zygoteManager = null;
-        this._done = () => {};
+        this._done = null;
     }
-    
+
     /**
      * Initialize with a ready ZygoteManager and done function
      * @param {ZygoteManager} zygoteManager A ready ZygoteManager

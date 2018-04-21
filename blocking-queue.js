@@ -48,10 +48,20 @@ class BlockingQueue {
      */
     put(item) {
         if (this.blockedJobs.length == 0) {
-            this.items.push(item);  
+            this.items.push(item);
         } else {
             let callback = this.blockedJobs.shift();
             callback(item);
+        }
+    }
+
+    /**
+     * Clears out the job queue for when queue needs to be emptied.
+     */
+    clear() {
+        while (this.blockedJobs.length > 0) {
+            let callback = this.blockedJobs.shift();
+            callback(null);
         }
     }
 }
