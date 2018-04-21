@@ -1,5 +1,6 @@
 const stream = require('stream');
 const { LineTransform, Port } = require('../pipe-util');
+const { TimeoutError } = require('../error.js')
 const { timeout }  = require('./test-util');
 
 test("LineTransform test", async () => {
@@ -43,4 +44,34 @@ test("Port basic test", async () => {
     }
 
     await Promise.all(jobs);
+});
+
+test("Port stress test", async () => {
+    let echo = new stream.PassThrough();
+    let port = new Port(echo, echo);
+    
+    for (let i = 0; i < 10; i++) {
+        let jobs = [];
+        for (let i = 0; i < 1000; i++) {
+            jobs.push(new Promise((resolve) => {
+                var n = Math.random();
+                port.send(n, 10, (err, response) => {
+                    expect(response).toEqual(n);
+                    resolve();
+                });
+            }));
+        }
+        await Promise.all(jobs);
+    }
+});
+
+test("Port timeout test", async () => {
+    let port = new Port(stream.PassThrough(), stream.PassThrough());
+
+    await new Promise((resolve) => {
+        port.send('hello', 10, (err, response) => {
+            expect(err).toBeInstanceOf(TimeoutError);
+            resolve();
+        });
+    });
 });
