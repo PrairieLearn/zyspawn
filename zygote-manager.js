@@ -45,6 +45,20 @@ class FunctionMissingError extends Error {
 }
 
 /**
+ * Error object used for when in bad state
+ */
+class BadStateError extends Error {
+  /**
+   * @param {JSON} message the message correlated with the missing function
+   */
+  constructor(expected, actual) {
+    const allowedStatesList = '[' + _.map(expected, String).join(',') + ']';
+    super("expected state(s):" + allowedStatesList + " but was in:" + String(actual));
+    this.name = 'BadStateError';
+  }
+}
+
+/**
  * An object which manages a python zygote. All communications between
  * javascript and python is wrapped inside this object.
  */
@@ -158,7 +172,7 @@ class ZygoteManager {
         }
 
         if (![READY].includes(this.state)) {
-            callback(new Error('Invalid internal ZygoteManager state for call(): ' + String(this.state)));
+            callback(new BadStateError([READY], this.state));
             return;
         }
 
@@ -595,7 +609,7 @@ class ZygoteManager {
             console.log("[ZygoteManager] creating worker");
         }
         if (![INIT, EXITED].includes(this.state)) {
-            callback(new Error('invalid internal ZygoteManager state for startWorker()'));
+            callback(new BadStateError([INIT, EXITED], this.state));
             return;
         }
         if (!this._checkState([INIT, EXITED], 'startWorker')) {
@@ -628,7 +642,7 @@ class ZygoteManager {
      */
     killWorker(callback) {
         if (![READY].includes(this.state)) {
-            callback(new Error('invalid internal ZygoteManager state for killWorker() in ' + String(this.state)), null);
+            callback(new BadStateError([READY], this.state), null);
             return;
         }
         if (!this._checkState([READY], 'killWorker')) {
@@ -664,7 +678,7 @@ class ZygoteManager {
 
     stdinWrite(obj) {
         if (![IN_CALL].includes(this.state)) {
-            return new Error('invalid internal ZygoteManager state for stdinWrite()');
+            return new BadStateError([IN_CALL], this.state);
         }
         if (!this._checkState([IN_CALL], 'stdinWrite')) {
             return new Error('invalid ZygoteManager state for stdinWrite');
