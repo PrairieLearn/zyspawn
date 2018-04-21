@@ -113,6 +113,14 @@ class ZygotePool {
     }
 
     /**
+     * Check if this ZygotePool has been shutdown
+     * @return {boolean} True if the ZygotePool has been shutdown
+     */
+    isShutdown() {
+        return this._isShutdown;
+    }
+
+    /**
      * Get number of idle zygotes.
      * @return {number} Number of idle zygotes
      */
