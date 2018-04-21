@@ -11,7 +11,8 @@ test("simple correctness test", async () => {
     q.put(1);
     q.put(2);
 
-    q.get((n) => {
+    q.get((err, n) => {
+        expect(err).toBeNull();
         record.push(util.format('Got %d', n));
         setTimeout(() => {
             record.push(util.format('Put %d', n));
@@ -19,7 +20,8 @@ test("simple correctness test", async () => {
         }, 75);
     });
 
-    q.get((n) => {
+    q.get((err, n) => {
+        expect(err).toBeNull();        
         record.push(util.format('Got %d', n));
         setTimeout(() => {
             record.push(util.format('Put %d', n));
@@ -27,11 +29,13 @@ test("simple correctness test", async () => {
         }, 50);
     });
 
-    q.get((n) => {
+    q.get((err, n) => {
+        expect(err).toBeNull();        
         record.push(util.format('Got %d', n));
     });
 
-    q.get((n) => {
+    q.get((err, n) => {
+        expect(err).toBeNull();        
         record.push(util.format('Got %d', n));
     });
 
@@ -54,7 +58,8 @@ test("stress test", async () => {
 
     for (let i = 0; i < requestNum; i++) {
         jobs.push(new Promise((resolve) => {
-            q.get((n) => {
+            q.get((err, n) => {
+                expect(err).toBeNull();                
                 setTimeout(() => {
                     q.put(n);
                     resolve();
