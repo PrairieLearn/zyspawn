@@ -61,12 +61,12 @@ class ZygotePool {
         callback = callback || DEFAULT_CALLBACK;
 
         this._isShutdown = false;
-        this._zygoteNum = zygoteNum;
+        this._totalZygoteNum = zygoteNum;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
 
         var jobs = [];
-        for (let i = 0; i < this._zygoteNum; i++) {
+        for (let i = 0; i < this._totalZygoteNum; i++) {
             jobs.push(new Promise((resolve) => {
                 ZygoteManager.create((err, zygoteManager) => {
                     if (!err) {
@@ -101,7 +101,7 @@ class ZygotePool {
         this._isShutdown = true;
 
         var jobs = [];
-        for (let i = 0; i < this._zygoteNum; i++) {
+        for (let i = 0; i < this._totalZygoteNum; i++) {
             jobs.push(new Promise((resolve) => {
                 this._idleZygoteManagerQueue.get((err, zygoteManager) => {
                     assert(!err); // BlockingQueue.clearWaiting() is never called
@@ -128,11 +128,27 @@ class ZygotePool {
     }
 
     /**
+     * Get total number of zygotes.
+     * @return {number} Total number of zygotes
+     */
+    totalZygoteNum() {
+        return this._totalZygoteNum;
+    }
+
+    /**
      * Get number of idle zygotes.
      * @return {number} Number of idle zygotes
      */
     idleZygoteNum() {
         return this._idleZygoteManagerQueue.size();
+    }
+
+    /**
+     * Get number of busy zygotes.
+     * @return {number} Number of busy zygotes
+     */
+    busyZygoteNum() {
+        return this.totalZygoteNum() - this.idleZygoteNum();
     }
 
     /**
