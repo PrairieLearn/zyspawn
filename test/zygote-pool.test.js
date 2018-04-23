@@ -83,20 +83,14 @@ test("Call non-existing function test", async () => {
     expect(zygotePool.isShutdown()).toBe(true);
 });
 
-// TODO In this case, ZygoteManager.killWorker() doesn't call the callback
+// // TODO In this case, ZygoteManager.killWorker() doesn't call the callback
 // test("Call non-existing file test", async () => {
 //     var zygotePool = new ZygotePool(5);
 //     var zygoteInterface = zygotePool.request();
 
 //     zygoteInterface.call("nowhere", "nonesense", null, (err, output) => {
 //         expect(err).toBeTruthy();
-//     });
-
-//     await new Promise((resolve) => {
-//         zygoteInterface.done((err) => {
-//             expect(err).toBeFalsy();
-//             resolve();
-//         });
+//         zygoteInterface.done();
 //     });
 
 //     await new Promise((resolve) => {

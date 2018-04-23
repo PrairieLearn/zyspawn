@@ -181,21 +181,35 @@ class ZygotePool {
                     callback(err); // do we need to pass the error outside
                 } else {
                     zygoteInterface._initialize(zygoteManager, (callback) => {
-                        // TODO check if the zygote is still healthy
-                        zygoteManager.killWorker((err) => {
-                            if (err) {
-                                // TODO create a new Zygote?
-                                callback(err);
-                            } else {
-                                this._idleZygoteManagerQueue.put(zygoteManager);
-                                callback(null);
-                            }
-                        });
+                        this._reclaimZygoteManager(zygoteInterface, callback);
                     });
                     callback(null);
                 }
             });
         });
+    }
+
+    /**
+     * Reclaim the ZygoteManager from a ZygoteInterface.
+     * @param {ZygoteInterface} zygoteInterface 
+     * @param {function(Error)} callback Called after the ZygoteManager is reclaimed
+     *                                   or error happens
+     */
+    _reclaimZygoteManager(zygoteInterface, callback) {
+        // TODO check if the zygote is still healthy
+        var zygoteManager = zygoteInterface._zygoteManager;
+        // console.log("Cleaning up! Start killing worker...");
+        zygoteManager.killWorker((err) => {
+            // console.log("Worker is killed!");
+            if (err) {
+                // TODO create a new Zygote?
+                callback(err);
+            } else {
+                this._idleZygoteManagerQueue.put(zygoteManager);
+                callback(null);
+            }
+        });
+        zygoteInterface._finalize();
     }
 }
 
@@ -214,6 +228,7 @@ class ZygoteInterface {
         this._zygotePool = zygotePool;
         this._zygoteManager = null;
         this._done = (callback) => { callback(null); };
+        this._state = ZygoteInterface.UNINITIALIZED;
     }
     
     /**
@@ -226,6 +241,27 @@ class ZygoteInterface {
     _initialize(zygoteManager, done) {
         this._zygoteManager = zygoteManager;
         this._done = done;
+        this._state = ZygoteInterface.INITIALIZED;
+    }
+
+    /**
+     * Finalize such that this ZygoteInterface is no longer usable.
+     */
+    _finalize() {
+        this._zygoteManager = null;
+        this._done = (callback) => { callback(null); };
+        this._state = ZygoteInterface.FINALIZED;
+    }
+
+    /**
+     * Get the state of ZygoteInterface
+     * @return {Number} One of the following:
+     *      ZygoteInterface.UNINITIALIZED (0)
+     *      ZygoteInterface.INITIALIZED (1)
+     *      ZygoteInterface.FINALIZED (2);
+     */
+    state() {
+        return this._state;
     }
 
     /**
@@ -238,7 +274,8 @@ class ZygoteInterface {
      *      stderr(String), result(object)
      */
     call(fileName, functionName, arg, callback) {
-        if (this._zygoteManager === null) {
+        switch (this.state()) {
+        case ZygoteInterface.UNINITIALIZED:
             this._zygotePool._allocateZygoteManager(this, (err) => {
                 if (err) { // Failure in ZygoteManager.startWorker()
                     callback(err);
@@ -246,8 +283,15 @@ class ZygoteInterface {
                     this._zygoteManager.call(fileName, functionName, arg, callback);
                 }
             });
-        } else {
+            break;
+        case ZygoteInterface.INITIALIZED:
             this._zygoteManager.call(fileName, functionName, arg, callback);
+            break;        
+        case ZygoteInterface.FINALIZED:
+            callback(new Error()); // TODO Error type
+            break;
+        default:
+            assert(false, "Bad state of ZygoteInterface: " + this.state());
         }
     }
 
@@ -262,6 +306,9 @@ class ZygoteInterface {
         this._done(callback);
     }
 }
+ZygoteInterface.UNINITIALIZED = 0;
+ZygoteInterface.INITIALIZED = 1;
+ZygoteInterface.FINALIZED = 2;
 
 module.exports.ZygotePool = ZygotePool
 module.exports.ZygoteInterface = ZygoteInterface
