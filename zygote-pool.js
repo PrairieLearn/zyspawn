@@ -44,6 +44,7 @@ const _ = require('lodash');
 const assert = require('assert');
 const BlockingQueue = require('./blocking-queue');
 const ZygoteManager = require('./zygote-manager');
+const { ZyspawnError, InternalZyspawnError } = require('./error');
 
 const DEFAULT_CALLBACK = (err) => { if(err) throw err; };
 
@@ -310,5 +311,9 @@ ZygoteInterface.UNINITIALIZED = 0;
 ZygoteInterface.INITIALIZED = 1;
 ZygoteInterface.FINALIZED = 2;
 
-module.exports.ZygotePool = ZygotePool
-module.exports.ZygoteInterface = ZygoteInterface
+
+module.exports.ZygotePool = ZygotePool;
+module.exports.ZygoteInterface = ZygoteInterface;
+
+module.exports.ZyspawnError = ZyspawnError;
+module.exports.InternalZyspawnError = InternalZyspawnError;
