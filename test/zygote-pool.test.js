@@ -20,8 +20,6 @@ test("Create and shutdown test", async () => {
     // zygotes are lazily allocated
     expect(zygotePool.idleZygoteNum()).toBe(5);
     
-    expect(zygoteInterface).toBeInstanceOf(ZygoteInterface);
-
     await new Promise((resolve) => {
         zygoteInterface.done((err) => {
             expect(err).toBeFalsy();
@@ -39,37 +37,19 @@ test("Create and shutdown test", async () => {
     });
 
     expect(zygotePool.isShutdown()).toBe(true);
-    expect(zygotePool.request()).toBeNull();   
 });
 
 test("Simple call test", async () => {
-    var zygotePool;
-    await new Promise((resolve) => {
-        zygotePool = new ZygotePool(5, (err) => {
-            expect(err).toBeFalsy();
-            resolve();
-        });
-    });
-
+    var zygotePool = new ZygotePool(5);
     var zygoteInterface = zygotePool.request();
-    expect(zygoteInterface).toBeInstanceOf(ZygoteInterface);
-    
-    await new Promise((resolve, reject) => {
-        zygoteInterface.call("test/python-scripts/simple", "add", [1,2],
-            (err, output) => {
-                expect(err).toBeFalsy();
-                expect(output.result.val).toBe(3);
-                resolve();
-            }
-        );
-    });
 
-    await new Promise((resolve) => {
-        zygoteInterface.done((err) => {
+    zygoteInterface.call("test/python-scripts/simple", "add", [1,2],
+        (err, output) => {
             expect(err).toBeFalsy();
-            resolve();
-        });
-    });
+            expect(output.result.val).toBe(3);
+            zygoteInterface.done()
+        }
+    );
 
     await new Promise((resolve) => {
         zygotePool.shutdown((err) => {
@@ -79,37 +59,19 @@ test("Simple call test", async () => {
     });
 
     expect(zygotePool.isShutdown()).toBe(true);
-    expect(zygotePool.request()).toBeNull();
 });
 
 
 test("Call non-existing function test", async () => {
-    var zygotePool;
-    await new Promise((resolve) => {
-        zygotePool = new ZygotePool(5, (err) => {
-            expect(err).toBeFalsy();
-            resolve();
-        });
-    });
-
+    var zygotePool = new ZygotePool(5);
     var zygoteInterface = zygotePool.request();
-    expect(zygoteInterface).toBeInstanceOf(ZygoteInterface);
 
-    await new Promise((resolve, reject) => {
-        zygoteInterface.call("test/python-scripts/simple", "nonexsist", null,
-            (err, output) => {
-                expect(err).toBeTruthy();
-                resolve();
-            }
-        );
-    });
-
-    await new Promise((resolve) => {
-        zygoteInterface.done((err) => {
-            expect(err).toBeFalsy();
-            resolve();
-        });
-    });
+    zygoteInterface.call("test/python-scripts/simple", "nonexsist", null,
+        (err, output) => {
+            expect(err).toBeTruthy();
+            zygoteInterface.done();
+        }
+    );
 
     await new Promise((resolve) => {
         zygotePool.shutdown((err) => {
@@ -119,27 +81,15 @@ test("Call non-existing function test", async () => {
     });
 
     expect(zygotePool.isShutdown()).toBe(true);
-    expect(zygotePool.request()).toBeNull();
 });
 
 // TODO In this case, ZygoteManager.killWorker() doesn't call the callback
 // test("Call non-existing file test", async () => {
-//     var zygotePool;
-//     await new Promise((resolve) => {
-//         zygotePool = new ZygotePool(5, (err) => {
-//             expect(err).toBeFalsy();
-//             resolve();
-//         });
-//     });
-
+//     var zygotePool = new ZygotePool(5);
 //     var zygoteInterface = zygotePool.request();
-//     expect(zygoteInterface).toBeInstanceOf(ZygoteInterface);
 
-//     await new Promise((resolve, reject) => {
-//         zygoteInterface.call("nowhere", "nonesense", null, (err, output) => {
-//             expect(err).toBeTruthy();
-//             resolve();
-//         });
+//     zygoteInterface.call("nowhere", "nonesense", null, (err, output) => {
+//         expect(err).toBeTruthy();
 //     });
 
 //     await new Promise((resolve) => {
@@ -157,5 +107,4 @@ test("Call non-existing function test", async () => {
 //     });
 
 //     expect(zygotePool.isShutdown()).toBe(true);
-//     expect(zygotePool.request()).toBeNull();
 // });

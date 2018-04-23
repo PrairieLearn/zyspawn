@@ -61,11 +61,12 @@ class ZygotePool {
         callback = callback || DEFAULT_CALLBACK;
 
         this._isShutdown = false;
+        this._zygoteNum = zygoteNum;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
 
         var jobs = [];
-        for (let i = 0; i < zygoteNum; i++) {
+        for (let i = 0; i < this._zygoteNum; i++) {
             jobs.push(new Promise((resolve) => {
                 ZygoteManager.create((err, zygoteManager) => {
                     if (!err) {
@@ -89,21 +90,25 @@ class ZygotePool {
     }
 
     /**
-     * Shutdown all zygotes in this pool.
-     * @param {function(Error)} callback Called after shutdown.
+     * Shutdown ZygotePool. Stop allocating idle zygotes but working zygotes
+     * won't be interrupted. All zygotes will be shutdown after they finish
+     * their work.
+     * @param {function(Error)} callback Called after all zygotes are shutdown.
      */
     shutdown(callback) {
         callback = callback || DEFAULT_CALLBACK;
 
         this._isShutdown = true;
-        this._idleZygoteManagerQueue.clearWaiting(new Error());
 
         var jobs = [];
-        this._zygoteManagerList.forEach((zygoteManager) => {
+        for (let i = 0; i < this._zygoteNum; i++) {
             jobs.push(new Promise((resolve) => {
-                zygoteManager.shutdown((err) => { resolve(err); });
+                this._idleZygoteManagerQueue.get((err, zygoteManager) => {
+                    assert(!err); // BlockingQueue.clearWaiting() is never called
+                    zygoteManager.shutdown((err) => { resolve(err); });
+                });
             }));
-        });
+        }
 
         Promise.all(jobs).then((errs) => {
             _.pull(errs, null);
@@ -134,11 +139,10 @@ class ZygotePool {
      * Request a ZygoteIterface to use (but Zygote will not be allocated until
      * the first time of calling ZygoteIterface.run()). See implementation of
      * ZygoteInterface and allocateZygoteManager() below.
-     * @return {ZygoteInterface} An interface to use the zygote. Return null
-     *                           when the ZygotePool is shutdown.
+     * @return {ZygoteInterface} An interface to use the zygote.
      */
     request() {
-        return this._isShutdown ? null : new ZygoteInterface(this);
+        return new ZygoteInterface(this);
     }
 
     /**
@@ -148,33 +152,33 @@ class ZygotePool {
      *                                   or error happens
      */
     _allocateZygoteManager(zygoteInterface, callback) {
-        assert(!this._isShutdown);
+        if (this._isShutdown) {
+            callback(new Error()); // TODO error type
+            return;
+        }
 
         this._idleZygoteManagerQueue.get((err, zygoteManager) => {
-            if (err) {
-                callback(err);
-            } else {
-                zygoteManager.startWorker((err) => {
-                    if (err) {
-                        // TODO create a new Zygote?
-                        callback(err); // do we need to pass the error outside
-                    } else {
-                        zygoteInterface._initialize(zygoteManager, (callback) => {
-                            // TODO check if the zygote is still healthy
-                            zygoteManager.killWorker((err) => {
-                                if (err) {
-                                    // TODO create a new Zygote?
-                                    callback(err);
-                                } else {
-                                    this._idleZygoteManagerQueue.put(zygoteManager);
-                                    callback(null);
-                                }
-                            });
+            assert(!err); // BlockingQueue.clearWaiting() is never called
+            zygoteManager.startWorker((err) => {
+                if (err) {
+                    // TODO create a new Zygote?
+                    callback(err); // do we need to pass the error outside
+                } else {
+                    zygoteInterface._initialize(zygoteManager, (callback) => {
+                        // TODO check if the zygote is still healthy
+                        zygoteManager.killWorker((err) => {
+                            if (err) {
+                                // TODO create a new Zygote?
+                                callback(err);
+                            } else {
+                                this._idleZygoteManagerQueue.put(zygoteManager);
+                                callback(null);
+                            }
                         });
-                        callback(null);
-                    }
-                });
-            }
+                    });
+                    callback(null);
+                }
+            });
         });
     }
 }
