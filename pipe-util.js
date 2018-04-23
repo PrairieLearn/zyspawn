@@ -76,6 +76,13 @@ class Port {
     }
 
     /**
+     * Check if this Port is busy (waiting for some response).
+     */
+    isBusy() {
+        return this._busy;
+    }
+
+    /**
      * Check if this Port is broken (unable to send/receive objects)
      */
     isBroken() {
