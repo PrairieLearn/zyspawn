@@ -55,6 +55,8 @@ def waitForChild(signum, frame):
         jsonDict["type"] = 'exit'
         jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
+        if getChildPid() != -1:
+            setChildPid(-1);
 
     # Message when the child is interupted!
     else:
@@ -65,6 +67,7 @@ def waitForChild(signum, frame):
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
+    sys.stderr.write("[Zygote] child died");
 
 
 # Function name is self explanitory
@@ -190,6 +193,7 @@ Messages that could be sent from zygote
 "message":"<pid_child>"
 }
 '''
+
 # Takes in a json object for a command to execute, returns message
 # Called in try
 def parseInput(command_input):
@@ -222,9 +226,10 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
-        os.kill(getChildPid(), signal.SIGKILL)
-        message["success"] = True
+        pid = getChildPid()
         setChildPid(-1)
+        os.kill(pid, signal.SIGKILL)
+        message["success"] = True
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
         sys.exit(0);

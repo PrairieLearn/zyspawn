@@ -198,7 +198,7 @@ class ZygoteManager {
             if (this.debugMode) {
               console.log(util.format("[ZygoteManager] Timeout on %s.%s", fileName, functionName));
             }
-            this.state = READY; // TODO Make this better. I can see this causing issues
+            this.state = ERROR; // TODO Make this better. I can see this causing issues
             this.timeoutID = null;
             this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'));
             this.incallCallBack = null;
@@ -303,6 +303,10 @@ class ZygoteManager {
             this.state = ERROR;
             this._clearTimeout();
             this._logError('_exitingMessageHandler Failed with messsage"' + message['message'] + '"');
+            if (message['message'] == 'no current worker') {
+                this.workerSpawned = false;
+                this.state = EXITED;
+            }
             this.exitingCallBack(new Error(message['message']));
             this.exitingCallBack = null;
         }
@@ -359,10 +363,10 @@ class ZygoteManager {
         }
         // TODO add check for state=departed
         if (![INIT, EXITED].includes(this.state)) {
-          return new Error('Cannot kill zygote until worker is killed: ' + String(this.state));
+          callback(new Error('Cannot kill zygote until worker is killed: ' + String(this.state)));
         }
         if (!this._checkState([INIT, EXITED],'killMyZygote')) {
-          return new Error('invalid ZygoteManager state for killMyZygote');
+          callback(new Error('invalid ZygoteManager state for killMyZygote'));
         }
         this.state = DEPARTING;
 
@@ -510,6 +514,7 @@ class ZygoteManager {
           err = new Error('Bad return code for _zygoteExitListener: ' + code);
         }
         this._clearTimeout();
+
         if (this.departingCallback != null) {
             this.departingCallback(err);
         }
@@ -534,8 +539,8 @@ class ZygoteManager {
         if (err) {
             console.log("!!!!!!!!!!!: _callIsFinished is trying to kill worker");
             this.state = EXITING;
-            this.killWorker();
             this._logError(String(err));
+            this.killWorker();
             this.incallCallBack(err, new Output(null, null, data));
             this.incallCallBack = null;
         } else {
@@ -641,25 +646,26 @@ class ZygoteManager {
      * a new ZygoteManager and restart their work.
      */
     killWorker(callback) {
-        if (![READY].includes(this.state)) {
+        if (![READY, ERROR].includes(this.state)) {
             callback(new Error('invalid internal ZygoteManager state for killWorker() in ' + String(this.state)), null);
             return;
         }
-        if (!this._checkState([READY], 'killWorker')) {
+        if (!this._checkState([READY, ERROR], 'killWorker')) {
             callback(new Error('invalid ZygoteManager state for killWorker()'), null);
             return;
         }
-        this.state = EXITING;
 
-        this.child.stdio[4].write(JSON.stringify({action: 'kill worker'})+'\n');
+        this.state = EXITING;
         this.exitingCallBack = callback;
 
         this.timeoutID = setTimeout(() => {
+            console.log("Timeout Error");
             // TODO Maybe try to kill 3 times? And then call callback?
             this.timeoutID = null;
             this.exitingCallBack(new Error("Failed to kill worker"));
             this.exitingCallBack = null;
         }, 1000);
+        this.child.stdio[4].write(JSON.stringify({action: 'kill worker'})+'\n');
     }
 
     _clearTimeout() {
