@@ -22,6 +22,7 @@ matplotlib.use('PDF')
 #   6 is a pipe used by Zygote to send exit info about the worker to zygote-manager.js
 
 childPid = -1
+MurderFlag = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 
 
@@ -40,8 +41,10 @@ def setChildPid(pid):
 
 def waitForChild(signum, frame):
     global exitInfoPipe
+    global MurderFlag
     pid = getChildPid()
     jsonDict = {}
+    jsonDeath = {}
     # Need to discuss need for this precation
     # if(pid == -1):
     #     jsonDict["type"] = 'no child in progress'
@@ -56,6 +59,15 @@ def waitForChild(signum, frame):
         jsonDict["type"] = 'exit'
         jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
+
+        if(MurderFlag == 1):
+            jsonDeath["success"] = True
+            outZygote = open(5, 'w', encoding='utf-8')
+            jsonStr = json.dumps(jsonDeath)
+            outZygote.write(jsonStr + '\n')
+            outZygote.flush()
+            MurderFlag = -1
+
         setChildPid(-1)
 
     # Message when the child is interupted!
@@ -96,6 +108,7 @@ def sigintHandler(signum, frame):
 
 def runWorker():
     # The output file descriptor.
+    global MurderFlag
     with open(3, 'w', encoding='utf-8') as outf:
 
         # Infinite loop
@@ -247,8 +260,9 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
+        MurderFlag = 1
         os.kill(getChildPid(), signal.SIGKILL)
-        message["success"] = True
+        # message["success"] = True
         setChildPid(-1)
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
