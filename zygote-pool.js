@@ -1,8 +1,8 @@
 /**
  * @fileoverview
  * This module manages a pool of python zygotes and includes API to use them.
- *
- * Usage:
+ * 
+ * Usage: // TODO need to be updated
  *  const {ZygotePool} = require('zygote-pool');
  *
  *  var zygotePool = new ZygotePool(10);
@@ -41,8 +41,10 @@
  *
  */
 const _ = require('lodash');
+const assert = require('assert');
 const BlockingQueue = require('./blocking-queue');
 const ZygoteManager = require('./zygote-manager');
+const { ZyspawnError, InternalZyspawnError } = require('./error');
 
 const DEFAULT_CALLBACK = (err) => { if(err) throw err; };
 
@@ -60,16 +62,20 @@ class ZygotePool {
         callback = callback || DEFAULT_CALLBACK;
         this._inShutdown = false;
 
+        this._isShutdown = false;
+        this._totalZygoteNum = zygoteNum;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
 
         var jobs = [];
-        for (let i = 0; i < zygoteNum; i++) {
+        for (let i = 0; i < this._totalZygoteNum; i++) {
             jobs.push(new Promise((resolve) => {
                 ZygoteManager.create((err, zygoteManager) => {
                     if (!err) {
                         this._zygoteManagerList.push(zygoteManager);
                         this._idleZygoteManagerQueue.put(zygoteManager);
+                        // TODO need to consider the case of shutdown before
+                        // before creating finished
                     }
                     resolve(err);
                 });
@@ -109,11 +115,65 @@ class ZygotePool {
     }
 
     /**
+     * Shutdown ZygotePool. Stop allocating idle zygotes but working zygotes
+     * won't be interrupted. All zygotes will be shutdown after they finish
+     * their work.
+     * @param {function(Error)} callback Called after all zygotes are shutdown.
+     */
+    shutdown(callback) {
+        callback = callback || DEFAULT_CALLBACK;
+
+        this._isShutdown = true;
+
+        var jobs = [];
+        for (let i = 0; i < this._totalZygoteNum; i++) {
+            jobs.push(new Promise((resolve) => {
+                this._idleZygoteManagerQueue.get((err, zygoteManager) => {
+                    assert(!err); // BlockingQueue.clearWaiting() is never called
+                    zygoteManager.shutdown((err) => { resolve(err); });
+                });
+            }));
+        }
+
+        Promise.all(jobs).then((errs) => {
+            _.pull(errs, null);
+            callback(errs.length == 0 ? null : errs);
+            // TODO
+            // need to define error object
+            // kill live zygotes when error happens?
+        });
+    }
+
+    /**
+     * Check if this ZygotePool has been shutdown
+     * @return {boolean} True if the ZygotePool has been shutdown
+     */
+    isShutdown() {
+        return this._isShutdown;
+    }
+
+    /**
+     * Get total number of zygotes.
+     * @return {number} Total number of zygotes
+     */
+    totalZygoteNum() {
+        return this._totalZygoteNum;
+    }
+
+    /**
      * Get number of idle zygotes.
      * @return {number} Number of idle zygotes
      */
     idleZygoteNum() {
         return this._idleZygoteManagerQueue.size();
+    }
+
+    /**
+     * Get number of busy zygotes.
+     * @return {number} Number of busy zygotes
+     */
+    busyZygoteNum() {
+        return this.totalZygoteNum() - this.idleZygoteNum();
     }
 
     /**
@@ -137,32 +197,48 @@ class ZygotePool {
      *                                   or error happens
      */
     _allocateZygoteManager(zygoteInterface, callback) {
-        if (this._inShutdown) {
-            callback(new Error("Zygote Pool is in shutdown mode"));
+        if (this._isShutdown) {
+            callback(new Error()); // TODO error type
             return;
         }
-        this._idleZygoteManagerQueue.get((zygoteManager) => {
+
+        this._idleZygoteManagerQueue.get((err, zygoteManager) => {
+            assert(!err); // BlockingQueue.clearWaiting() is never called
             zygoteManager.startWorker((err) => {
                 if (err) {
                     // TODO create a new Zygote?
                     callback(err); // do we need to pass the error outside
                 } else {
                     zygoteInterface._initialize(zygoteManager, (callback) => {
-                        // TODO check if the zygote is still healthy
-                        zygoteManager.killWorker((err) => {
-                            if (err) {
-                                // TODO create a new Zygote?
-                                callback(err);
-                            } else {
-                                this._idleZygoteManagerQueue.put(zygoteManager);
-                                callback(null);
-                            }
-                        });
+                        this._reclaimZygoteManager(zygoteInterface, callback);
                     });
                     callback(null);
                 }
             });
         });
+    }
+
+    /**
+     * Reclaim the ZygoteManager from a ZygoteInterface.
+     * @param {ZygoteInterface} zygoteInterface 
+     * @param {function(Error)} callback Called after the ZygoteManager is reclaimed
+     *                                   or error happens
+     */
+    _reclaimZygoteManager(zygoteInterface, callback) {
+        // TODO check if the zygote is still healthy
+        var zygoteManager = zygoteInterface._zygoteManager;
+        // console.log("Cleaning up! Start killing worker...");
+        zygoteManager.killWorker((err) => {
+            // console.log("Worker is killed!");
+            if (err) {
+                // TODO create a new Zygote?
+                callback(err);
+            } else {
+                this._idleZygoteManagerQueue.put(zygoteManager);
+                callback(null);
+            }
+        });
+        zygoteInterface._finalize();
     }
 }
 
@@ -180,7 +256,8 @@ class ZygoteInterface {
     constructor(zygotePool) {
         this._zygotePool = zygotePool;
         this._zygoteManager = null;
-        this._done = null;
+        this._done = (callback) => { callback(null); };
+        this._state = ZygoteInterface.UNINITIALIZED;
     }
 
     /**
@@ -193,6 +270,27 @@ class ZygoteInterface {
     _initialize(zygoteManager, done) {
         this._zygoteManager = zygoteManager;
         this._done = done;
+        this._state = ZygoteInterface.INITIALIZED;
+    }
+
+    /**
+     * Finalize such that this ZygoteInterface is no longer usable.
+     */
+    _finalize() {
+        this._zygoteManager = null;
+        this._done = (callback) => { callback(null); };
+        this._state = ZygoteInterface.FINALIZED;
+    }
+
+    /**
+     * Get the state of ZygoteInterface
+     * @return {Number} One of the following:
+     *      ZygoteInterface.UNINITIALIZED (0)
+     *      ZygoteInterface.INITIALIZED (1)
+     *      ZygoteInterface.FINALIZED (2);
+     */
+    state() {
+        return this._state;
     }
 
     /**
@@ -205,7 +303,8 @@ class ZygoteInterface {
      *      stderr(String), result(object)
      */
     call(fileName, functionName, arg, callback) {
-        if (this._zygoteManager == null) {
+        switch (this.state()) {
+        case ZygoteInterface.UNINITIALIZED:
             this._zygotePool._allocateZygoteManager(this, (err) => {
                 if (err) { // Failure in ZygoteManager.startWorker()
                     callback(err);
@@ -213,8 +312,15 @@ class ZygoteInterface {
                     this._zygoteManager.call(fileName, functionName, arg, callback);
                 }
             });
-        } else {
+            break;
+        case ZygoteInterface.INITIALIZED:
             this._zygoteManager.call(fileName, functionName, arg, callback);
+            break;        
+        case ZygoteInterface.FINALIZED:
+            callback(new Error()); // TODO Error type
+            break;
+        default:
+            assert(false, "Bad state of ZygoteInterface: " + this.state());
         }
     }
 
@@ -229,6 +335,13 @@ class ZygoteInterface {
         this._done(callback);
     }
 }
+ZygoteInterface.UNINITIALIZED = 0;
+ZygoteInterface.INITIALIZED = 1;
+ZygoteInterface.FINALIZED = 2;
 
-module.exports.ZygotePool = ZygotePool
-module.exports.ZygoteInterface = ZygoteInterface
+
+module.exports.ZygotePool = ZygotePool;
+module.exports.ZygoteInterface = ZygoteInterface;
+
+module.exports.ZyspawnError = ZyspawnError;
+module.exports.InternalZyspawnError = InternalZyspawnError;
