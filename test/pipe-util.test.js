@@ -1,6 +1,5 @@
 const stream = require('stream');
 const { LineTransform, Port } = require('../pipe-util');
-const { TimeoutError } = require('../error.js')
 const { timeout }  = require('./test-util');
 
 test("LineTransform test", async () => {
@@ -70,7 +69,7 @@ test("Port timeout test", async () => {
 
     await new Promise((resolve) => {
         port.send('hello', 10, (err, response) => {
-            expect(err).toBeInstanceOf(TimeoutError);
+            expect(err).toBeInstanceOf(Error);
             resolve();
         });
     });

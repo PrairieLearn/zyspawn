@@ -2,8 +2,6 @@ const assert = require('assert');
 const util = require('util');
 const stream = require('stream');
 
-const { TimeoutError, JSONParseError } = require('./error');
-
 /**
  * Transform a stream of bytes into a stream of String (break by newline).
  */
@@ -66,7 +64,7 @@ class Port {
      */
     send(obj, timeout, callback) {
         if (this._broken) {
-            callback(new InternalError());
+            callback(new Error());
         } else {
             this._waiting_jobs.push({obj: obj, timeout: timeout, callback: callback});
             if (!this._busy) {
@@ -103,7 +101,7 @@ class Port {
             this._in.removeListener('data', dataReceivedCallback);
             this._busy = false;
 
-            this._break(job, new TimeoutError());
+            this._break(job, new Error()); // TODO
         }, job.timeout);
 
         dataReceivedCallback = (response) => {
@@ -113,7 +111,7 @@ class Port {
             
             let obj = parseJSON(response);
             if (obj instanceof SyntaxError) {
-                this._break(job, new JSONParseError(obj.message, response));
+                this._break(job, new Error()); // TODO
             } else {
                 if (this._waiting_jobs.length != 0) this._start_next_job();                
                 job.callback(null, obj);
@@ -128,7 +126,7 @@ class Port {
         this._broken = true;
         current_job.callback(err);
         this._waiting_jobs.forEach((job) => {
-            job.callback(new InternalError()); //TODO
+            job.callback(new Error()); //TODO
         });
         this._waiting_jobs.length = 0;
     }

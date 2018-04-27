@@ -1,7 +1,6 @@
 const util = require('util');
 const ZygoteManager = require('../zygote-manager');
-const {hlt} = require('./testutil');
-const {timeout} = require('./testutil');
+const {timeout} = require('./test-util');
 
 var zInterface = null;
 var zErr = null;
@@ -193,6 +192,62 @@ test("Zygote call on non existing function", async (done) => {
                         var resp = zInterface.forceKillMyZygote();
                         zInterface = null;
                         done();
+                  });
+              });
+          });
+    });
+});
+
+test("Zygote call on non existing file", async (done) => {
+    jest.setTimeout(10000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("who", "nonexsist", [10,2], (err, output) => {
+                  expect(String(err)).toBe("Error: Timed out on calling: \"nonexsist\" in \"who\"");
+                  zMan.killWorker((err) => {
+                        expect(String(err)).toBe("Error: no current worker");
+                        var resp = zInterface.killMyZygote((err)=>{
+                            expect(err).toBeNull();
+                            zInterface = null;
+                            done();
+                        });
+                  });
+              });
+          });
+    }, "zygote.py",true);
+});
+
+test("Zygote reuse zygote", async (done) => {
+    jest.setTimeout(10000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("test/python-scripts/simple", "add", [10,2], (err, output) => {
+                  expect(err).toBeNull();
+                  expect(output.result["val"]).toBe(12);
+                  zMan.killWorker((err) => {
+                        expect(err).toBeNull();
+                        // REUSE of zygote
+                        zMan.startWorker((err, zyInt)=>{
+                              expect(err).toBeNull();
+                              zMan.call("test/python-scripts/strings", "substring", ["laughter",2,5], (err, output) => {
+                                  expect(err).toBeNull();
+                                  expect(output.result["val"]).toBe("ugh");
+                                  zMan.killWorker((err) => {
+                                        expect(err).toBeNull();
+                                        var resp = zMan.killMyZygote((err)=>{
+                                            expect(err).toBeNull();
+                                            zInterface = null;
+                                            done();
+                                        });
+                                  });
+                              });
+                        });
                   });
               });
           });

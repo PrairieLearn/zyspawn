@@ -1,30 +1,49 @@
 const util = require('util')
 
-class ZyError extends Error {
+/**
+ * All errors happening inside zyspawn
+ */
+class ZyspawnError extends Error {
     constructor(message) {
         super(message);
     }
 }
 
-class TimeoutError extends ZyError {
+/**
+ * Errors due to problems of implementation.
+ */
+class InternalZyspawnError extends ZyspawnError {
     constructor(message) {
         super(message);
     }
 }
 
-class BadStateError extends ZyError {
+/**
+ * Error when function is missing. Occurs in
+ *      ZygoteInterface.call()
+ */
+class FunctionMissingError extends ZyspawnError {
+    /**
+     * @param {string} message the message correlated with the missing function
+     */
     constructor(message) {
         super(message);
     }
 }
 
-class JSONParseError extends ZyError {
-    constructor(message, badJSON) {
-        super(util.format("%s in %s", message, badJSON));
+/**
+ * Error when a method is called in a wrong state. Occurs in
+ *      ZygoteInterface.call()
+ *      // TODO ...
+ */
+class InvalidOperationError extends ZyspawnError {
+    constructor(message) {
+        super(message);
     }
 }
 
-module.exports.ZyError = ZyError;
-module.exports.TimeoutError = TimeoutError;
-module.exports.BadStateError = BadStateError;
-module.exports.JSONParseError = JSONParseError;
+
+module.exports.ZyspawnError = ZyspawnError;
+module.exports.InternalZyspawnError = InternalZyspawnError;
+module.exports.FunctionMissingError = FunctionMissingError;
+module.exports.InvalidOperationError = InvalidOperationError;

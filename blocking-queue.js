@@ -8,8 +8,8 @@
  */
 class BlockingQueue {
     constructor() {
-        this.items = [];
-        this.blockedJobs = [];
+        this._items = [];
+        this._blockedJobs = [];
     }
 
     /**
@@ -17,7 +17,7 @@ class BlockingQueue {
      * @return {number} Current number of items in the queue
      */
     size() {
-        return this.items.length;
+        return this._items.length;
     }
 
     /**
@@ -25,34 +25,46 @@ class BlockingQueue {
      * @return {number} Current number of items in the queue
      */
     waitingCount() {
-        return this.blockedJobs.length;
+        return this._blockedJobs.length;
     }
 
     /**
      * Get an item from the queue. The callback will be called when an item
      * is available.
-     * @param {function(any)} callback Callback function of form callback(item)
+     * @param {function(Error, any)} callback Called when item is avaible or
+     *                                        clearWaiting() is called.
      */
     get(callback) {
-        if (this.items.length == 0) {
-            this.blockedJobs.push(callback);
+        if (this._items.length == 0) {
+            this._blockedJobs.push(callback);
         } else {
-            callback(this.items.shift());
+            callback(null, this._items.shift());
         }
     }
 
     /**
      * Put an item in the queue. If there are blocked jobs, the first of them
      * will be called.
-     * @param {any} item
+     * @param {any} item The item to put
      */
     put(item) {
-        if (this.blockedJobs.length == 0) {
-            this.items.push(item);  
+        if (this._blockedJobs.length == 0) {
+            this._items.push(item);  
         } else {
-            let callback = this.blockedJobs.shift();
-            callback(item);
+            let callback = this._blockedJobs.shift();
+            callback(null, item);
         }
+    }
+
+    /**
+     * Raise an error on each waiting get requests.
+     * @param {Error} err The error to raise
+     */
+    clearWaiting(err) {
+        this._blockedJobs.forEach((callback) => {
+            callback(err);
+        });
+        this._blockedJobs.length = 0;
     }
 }
 
