@@ -167,7 +167,6 @@ Valid messages that could be sent to zygote
 {"action":"kill worker"}
 {"action":"status"}
 {"action":"getChildPid"}
-
 Messages that could be sent from zygote
 {
 "success":true,
