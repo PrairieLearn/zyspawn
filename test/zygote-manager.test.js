@@ -198,6 +198,28 @@ test("Zygote call on non existing function", async (done) => {
     });
 });
 
+test("Zygote call on non existing file", async (done) => {
+    jest.setTimeout(10000);
+    ZygoteManager.create((err, zMan)=>{
+          zInterface = zMan;
+          expect(err).toBeNull();
+          zMan.startWorker((err, zyInt)=>{
+              expect(err).toBeNull();
+              zMan.call("who", "nonexsist", [10,2], (err, output) => {
+                  expect(String(err)).toBe("Error: Timed out on calling: \"nonexsist\" in \"who\"");
+                  zMan.killWorker((err) => {
+                        expect(String(err)).toBe("Error: no current worker");
+                        var resp = zInterface.killMyZygote((err)=>{
+                            expect(err).toBeNull();
+                            zInterface = null;
+                            done();
+                        });
+                  });
+              });
+          });
+    }, "zygote.py",true);
+});
+
 test("Zygote reuse zygote", async (done) => {
     jest.setTimeout(10000);
     ZygoteManager.create((err, zMan)=>{

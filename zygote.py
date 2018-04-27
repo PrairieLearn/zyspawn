@@ -59,6 +59,8 @@ def waitForChild(signum, frame):
         jsonDict["type"] = 'exit'
         jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
+        if getChildPid() != -1:
+            setChildPid(-1);
 
         if(MurderFlag == 1):
             jsonDeath["success"] = True
@@ -79,6 +81,7 @@ def waitForChild(signum, frame):
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
+    sys.stderr.write("[Zygote] child died");
 
 #   Signal handler for SIGINTs' sent in from the zygote-manager.
 #   Ensures the child process is killed off before the the program itself is teminated
@@ -227,6 +230,7 @@ Messages that could be sent from zygote
 "message":"<pid_child>"
 }
 '''
+
 # Takes in a json object for a command to execute, returns message
 # Called in try
 def parseInput(command_input):
@@ -264,6 +268,8 @@ def parseInput(command_input):
         os.kill(getChildPid(), signal.SIGKILL)
         # message["success"] = True
         setChildPid(-1)
+        os.kill(pid, signal.SIGKILL)
+        message["success"] = True
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
         sys.exit(0);
