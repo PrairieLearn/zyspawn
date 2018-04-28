@@ -51,7 +51,7 @@ test("Spawn Worker Timeout Test", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(String(err)).toBe("Error: Timeout starting worker");
               var resp = zInterface.forceKillMyZygote();
               zInterface = null;
@@ -67,7 +67,7 @@ test("Spawn Worker No Timeout Test", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.killWorker((err) => {
                   expect(err).toBeNull();
@@ -87,7 +87,7 @@ test("Running Simple Method that times out", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test.py", "summer", [1,2], (err, output) => {
                   expect(String(err)).toBe('Error: Timed out on calling: "summer" in "test.py"');
@@ -108,7 +108,7 @@ test("Zygote call on add python", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
                   expect(err).toBeNull();
@@ -129,7 +129,7 @@ test("Zygote call on python multiple methods", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
                   expect(err).toBeNull();
@@ -154,7 +154,7 @@ test("Zygote call on add python multiple files", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test/python-scripts/simple", "add", [10,2], (err, output) => {
                   expect(err).toBeNull();
@@ -183,7 +183,7 @@ test("Zygote call on non existing function", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test/python-scripts/simple", "nonexsist", [10,2], (err, output) => {
                   expect(String(err)).toBe("FunctionMissingError: Function not found in module");
@@ -225,7 +225,7 @@ test("Zygote reuse zygote", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
-          zMan.startWorker((err, zyInt)=>{
+          zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test/python-scripts/simple", "add", [10,2], (err, output) => {
                   expect(err).toBeNull();
@@ -233,7 +233,7 @@ test("Zygote reuse zygote", async (done) => {
                   zMan.killWorker((err) => {
                         expect(err).toBeNull();
                         // REUSE of zygote
-                        zMan.startWorker((err, zyInt)=>{
+                        zMan.startWorker((err)=>{
                               expect(err).toBeNull();
                               zMan.call("test/python-scripts/strings", "substring", ["laughter",2,5], (err, output) => {
                                   expect(err).toBeNull();
