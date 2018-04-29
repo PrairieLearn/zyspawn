@@ -59,7 +59,7 @@ const roundCheck = function(zMan, done, rounds) {
     }
 };
 test("Stress test 1 round", async (done) => {
-    jest.setTimeout(10000);
+    jest.setTimeout(1000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
@@ -71,7 +71,7 @@ test("Stress test 1 round", async (done) => {
 });
 
 test("Stress test 100 round", async (done) => {
-    jest.setTimeout(10000);
+    jest.setTimeout(9000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
@@ -95,7 +95,7 @@ test("Stress test 1000 rounds", async (done) => {
 });
 
 test("Stress test over 9000 rounds", async (done) => {
-    jest.setTimeout(10000);
+    jest.setTimeout(6000);
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
