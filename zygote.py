@@ -1,7 +1,10 @@
 #TODO
 # 1. Design and write necessary test cases.
-# 2. SIGINT Handler required
 
+
+# Points of discussion:
+# 1. How the zygote-manager is going to inform the zygote to terminate itself.
+# 2. Pipe 6 with the debug info.
 
 import signal
 import sys, os, json, importlib, copy, base64, io, matplotlib
@@ -19,6 +22,7 @@ matplotlib.use('PDF')
 #   6 is a pipe used by Zygote to send exit info about the worker to zygote-manager.js
 
 childPid = -1
+MurderFlag = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 
 
@@ -34,13 +38,13 @@ def setChildPid(pid):
     childPid = pid
 
 #   This function waits for it's child to complete it's assigned task.
-#   Returns zero upon successful completion by the child
-#   Returns -1 otherwise
 
 def waitForChild(signum, frame):
     global exitInfoPipe
+    global MurderFlag
     pid = getChildPid()
     jsonDict = {}
+    jsonDeath = {}
     # Need to discuss need for this precation
     # if(pid == -1):
     #     jsonDict["type"] = 'no child in progress'
@@ -58,9 +62,19 @@ def waitForChild(signum, frame):
         if getChildPid() != -1:
             setChildPid(-1);
 
+        if(MurderFlag == 1):
+            jsonDeath["success"] = True
+            outZygote = open(5, 'w', encoding='utf-8')
+            jsonStr = json.dumps(jsonDeath)
+            outZygote.write(jsonStr + '\n')
+            outZygote.flush()
+            MurderFlag = -1
+
+        setChildPid(-1)
+
     # Message when the child is interupted!
     else:
-        jsonDict["type"] = 'exit'
+        jsonDict["type"] = 'Child_Paused'
         jsonDict["code"] = signum
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
@@ -69,12 +83,35 @@ def waitForChild(signum, frame):
     exitInfoPipe.flush()
     sys.stderr.write("[Zygote] child died");
 
+#   Signal handler for SIGINTs' sent in from the zygote-manager.
+#   Ensures the child process is killed off before the the program itself is teminated
+
+def sigintHandler(signum, frame):
+    global exitInfoPipe
+    pid = getChildPid()
+
+    jsonDict = {}
+
+    if(pid != -1):
+        os.kill(getChildPid(), signal.SIGKILL)
+
+    jsonDict["type"] = 'Zygote inturupt!'
+    jsonDict["code"] = signum
+    jsonDict["signal"] = "SIGINT"
+
+    jsonStr = json.dumps(jsonDict)
+    exitInfoPipe.write(jsonStr + '\n')
+    exitInfoPipe.flush()
+
+    sys.exit(-1)
+
 
 # Function name is self explanitory
 # This function is called from the parseInput function
 
 def runWorker():
     # The output file descriptor.
+    global MurderFlag
     with open(3, 'w', encoding='utf-8') as outf:
 
         # Infinite loop
@@ -219,13 +256,16 @@ def parseInput(command_input):
             pass
             # Set signal handler for when child dies
             signal.signal(signal.SIGCHLD, waitForChild)
+            signal.signal(signal.SIGINT, sigintHandler)
         message["success"] = True
     elif (action == "kill worker"):
         if (getChildPid() == -1):
             message["success"] = False
             message["message"] = "no current worker"
             return message
-        pid = getChildPid()
+        MurderFlag = 1
+        os.kill(getChildPid(), signal.SIGKILL)
+        # message["success"] = True
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
         message["success"] = True
