@@ -118,7 +118,7 @@ class ZygoteManager {
         this.child.stdio[5].on('close', ()=>{
             this.child.stdio[5].removeAllListeners();
         });
-    
+
         this.controlPort = new Port(this.child.stdio[4], this.child.stdio[5]);
         this.callPort = new Port(this.child.stdin, this.child.stdio[3]);
 
@@ -205,11 +205,11 @@ class ZygoteManager {
             } else {
                 if (message['present']) {
                   this.state = READY;
-                  callback(null, new Output(null, null, message));
+                  callback(null, new Output(this.outputStdout, this.outputStderr, message));
                 } else {
                   // TODO we can read from the message to see internal state/specificly what went wrong
                   this.state = READY;
-                  callback(new FunctionMissingError(functionName, fileName), new Output(null, null, message)); // TODO implement stderr and stdout
+                  callback(new FunctionMissingError(functionName, fileName), new Output(this.outputStdout, this.outputStderr, message)); // TODO implement stderr and stdout
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
             }
