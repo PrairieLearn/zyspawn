@@ -21,7 +21,7 @@ const roundCheck = function(zMan, done, rounds) {
     if (rounds <= 0) {
         zMan.killWorker((err) => {
               expect(err).toBeNull();
-              var resp = zInterface.forceKillMyZygote();
+              zInterface.forceKillMyZygote();
               zInterface = null;
               if (done != null) {
                   done();
