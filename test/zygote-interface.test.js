@@ -23,7 +23,7 @@ test("Unknown method test for ZyInterface", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
         zyInt.call("test/python-scripts/simple", "unkown", [1,2], (err, output) => {
-            expect(String(err)).toBe("FunctionMissingError: Function not found in module");
+            expect(String(err)).toBe("ZySpawnError: Missing function \"unkown\" in file \"test/python-scripts/simple\"");
             zyInt.done(done);
         });
     });
