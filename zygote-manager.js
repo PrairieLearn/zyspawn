@@ -344,7 +344,7 @@ class ZygoteManager {
             }
             this.departingCallback = null;
         }, 3000);
-        this.child.kill('SIGINT');
+        this.child.kill('SIGTERM');
     }
 
     _checkState(allowedStates, from=null) {

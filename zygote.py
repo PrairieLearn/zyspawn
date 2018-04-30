@@ -73,6 +73,15 @@ def waitForChild(signum, frame):
 # Function name is self explanitory
 # This function is called from the parseInput function
 
+def int_handler(signum, frame):
+    if(getChildPid() == -1):
+        sys.exit(0)
+    else:
+        pid = getChildPid()
+        setChildPid(-1)
+        os.kill(pid, signal.SIGKILL)
+        sys.exit(0)
+
 def runWorker():
     # The output file descriptor.
     with open(3, 'w', encoding='utf-8') as outf:
@@ -213,6 +222,7 @@ def parseInput(command_input):
         setChildPid(os.fork())
         if (getChildPid() == 0):
             # We are child
+            setChildPid(-1)
             runWorker()
             sys.exit(1) # exit with error code if child exits runWorker
         else:
@@ -253,6 +263,7 @@ try:
         # infinite loop for Zygote to recieve commands
         # Zygote will not exit on its own
         # Unless it recieves a SIGTERM or SIGKILL
+        signal.signal(signal.SIGTERM, int_handler)
         while True:
             # wait for a single line of input from command pipe
             json_inp = inZygote.readline().strip()
