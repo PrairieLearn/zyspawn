@@ -118,8 +118,11 @@ class ZygoteManager {
         this.child.stdio[5].on('close', ()=>{
             this.child.stdio[5].removeAllListeners();
         });
-        this.pipe = new Port(this.child.stdio[4], this.child.stdio[5]);
-        this.pipe.send({action: 'status'}, 3000, (err, message) => {
+    
+        this.controlPort = new Port(this.child.stdio[4], this.child.stdio[5]);
+        this.callPort = new Port(this.child.stdin, this.child.stdio[3]);
+
+        this.controlPort.send({action: 'status'}, 3000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
                 callback(new TimeoutError("Creating Zygote"), this);
@@ -135,7 +138,6 @@ class ZygoteManager {
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
             }
-            this.pipe = null;
         });
         /*
         // Call status on zygote.py inorder to determine if it is alive
@@ -196,8 +198,7 @@ class ZygoteManager {
 
         this.lastCallData = callData;
         this.state = IN_CALL;
-        this.pipe = new Port(this.child.stdin, this.child.stdio[3]);
-        this.pipe.send(callData, 3000, (err, message) => {
+        this.callPort.send(callData, 3000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
                 callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""), this);
@@ -485,8 +486,7 @@ class ZygoteManager {
             return;
         }
         this.state = PREPPING;
-        this.pipe = new Port(this.child.stdio[4], this.child.stdio[5]);
-        this.pipe.send({action: 'create worker'}, 4000, (err, message) => {
+        this.controlPort.send({action: 'create worker'}, 4000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
                 callback(new TimeoutError("Creating Worker"));
@@ -503,7 +503,6 @@ class ZygoteManager {
                   this._logError('startWorker Failed with messsage "' + message['message'] + '"');
                 }
             }
-            this.pipe = null;
         });
         /*
         this.prepCallBack = callback;
@@ -542,8 +541,7 @@ class ZygoteManager {
 
         this.state = EXITING;
 
-        this.pipe = new Port(this.child.stdio[4], this.child.stdio[5]);
-        this.pipe.send({action: 'kill worker'}, 1000, (err, message) => {
+        this.controlPort.send({action: 'kill worker'}, 1000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
                 callback(new TimeoutError("Killing Worker"));
@@ -560,7 +558,6 @@ class ZygoteManager {
                   this._logError('killWorker Failed with messsage "' + message['message'] + '"');
                 }
             }
-            this.pipe = null;
         });
         /*
         this.exitingCallBack = callback;
@@ -590,16 +587,16 @@ class ZygoteManager {
         }
     }
 
-    stdinWrite(obj) {
-        assert(false);
-        if (![IN_CALL].includes(this.state)) {
-            return new BadStateError([IN_CALL], this.state);
-        }
-        if (!this._checkState([IN_CALL], 'stdinWrite')) {
-            return new Error('invalid ZygoteManager state for stdinWrite');
-        }
-        this.child.stdin.write(obj);
-    }
+    // stdinWrite(obj) {
+    //     assert(false);
+    //     if (![IN_CALL].includes(this.state)) {
+    //         return new BadStateError([IN_CALL], this.state);
+    //     }
+    //     if (!this._checkState([IN_CALL], 'stdinWrite')) {
+    //         return new Error('invalid ZygoteManager state for stdinWrite');
+    //     }
+    //     this.child.stdin.write(obj);
+    // }
 
     // more private methods ...
     // most complicated part here - the state machine, etc
