@@ -69,7 +69,7 @@ class Port {
      */
     send(obj, timeout, callback) {
         if (this._broken) {
-            callback(new BrokenPortError());
+            callback(new PortBrokenError());
         } else {
             this._waiting_jobs.push({obj: obj, timeout: timeout, callback: callback});
             if (!this._busy) {
@@ -131,7 +131,7 @@ class Port {
         this._broken = true;
         current_job.callback(err);
         this._waiting_jobs.forEach((job) => {
-            job.callback(new BrokenPortError());
+            job.callback(new PortBrokenError());
         });
         this._waiting_jobs.length = 0;
     }

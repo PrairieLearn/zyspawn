@@ -1,5 +1,11 @@
 const stream = require('stream');
-const { LineTransform, Port } = require('../pipe-util');
+const {
+    LineTransform,
+    Port,
+    PortBrorkenError,
+    PortTimeoutError,
+    PortParseError
+} = require('../pipe-util');
 const { timeout }  = require('./test-util');
 
 test("LineTransform test", async () => {
@@ -64,12 +70,41 @@ test("Port stress test", async () => {
     }
 });
 
+test("Port bad format test", async () => {
+    let sender = new stream.PassThrough();
+    let receiver = new stream.PassThrough();    
+    let port = new Port(sender, receiver);
+
+    receiver.write('{\n');
+
+    await new Promise((resolve) => {
+        port.send('hello', 10, (err, response) => {
+            expect(err).toBeInstanceOf(PortParseError);
+            resolve();
+        });
+    });
+
+    await new Promise((resolve) => {
+        port.send('hello', 10, (err, response) => {
+            expect(err).toBeInstanceOf(PortBrorkenError);
+            resolve();
+        });
+    });
+});
+
 test("Port timeout test", async () => {
     let port = new Port(stream.PassThrough(), stream.PassThrough());
 
     await new Promise((resolve) => {
         port.send('hello', 10, (err, response) => {
-            expect(err).toBeInstanceOf(Error);
+            expect(err).toBeInstanceOf(PortTimeoutError);
+            resolve();
+        });
+    });
+
+    await new Promise((resolve) => {
+        port.send('hello', 10, (err, response) => {
+            expect(err).toBeInstanceOf(PortBrorkenError);
             resolve();
         });
     });
