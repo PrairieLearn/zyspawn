@@ -25,8 +25,10 @@ class LineTransform extends stream.Transform {
     }
 
     _flush(callback) {
-        this.push(this._buffer);
-        this._buffer = "";
+        if (this._buffer.length > 0) {
+            this.push(this._buffer);
+            this._buffer = "";
+        }
         callback();
     }
 }
