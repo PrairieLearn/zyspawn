@@ -2,6 +2,8 @@ const assert = require('assert');
 const util = require('util');
 const stream = require('stream');
 
+const { InternalZyspawnError } = require('./error');
+
 /**
  * Transform a stream of bytes into a stream of String (break by newline).
  */
@@ -32,6 +34,7 @@ class LineTransform extends stream.Transform {
         callback();
     }
 }
+
 
 /**
  * Wraps the logic of two-way communication through two pipes (one to
@@ -103,7 +106,7 @@ class Port {
             this._in.removeListener('data', dataReceivedCallback);
             this._busy = false;
 
-            this._break(job, new Error()); // TODO
+            this._break(job, new PortTimeoutError(job.timeout));
         }, job.timeout);
 
         dataReceivedCallback = (response) => {
@@ -113,7 +116,7 @@ class Port {
             
             let obj = parseJSON(response);
             if (obj instanceof SyntaxError) {
-                this._break(job, new Error()); // TODO
+                this._break(job, new PortParseError(response));
             } else {
                 if (this._waiting_jobs.length != 0) this._start_next_job();                
                 job.callback(null, obj);
@@ -128,11 +131,12 @@ class Port {
         this._broken = true;
         current_job.callback(err);
         this._waiting_jobs.forEach((job) => {
-            job.callback(new Error()); //TODO
+            job.callback(new BrokenPortError()); //TODO
         });
         this._waiting_jobs.length = 0;
     }
 }
+
 
 function parseJSON(str) {
     try {
@@ -142,5 +146,30 @@ function parseJSON(str) {
     }
 }
 
+
+class PortBrokenError extends InternalZyspawnError {
+    constructor() {
+        super("Error occurs in previous messages");
+    }
+}
+
+
+class PortTimeoutError extends InternalZyspawnError {
+    constructor(timeout) {
+        super(`Response not received in specified time limit: ${timeout}`);
+    }
+}
+
+
+class PortParseError extends InternalZyspawnError {
+    constructor(response) {
+        super(`Bad response format: ${response}`);
+    }
+}
+
+
 module.exports.LineTransform = LineTransform;
 module.exports.Port = Port;
+module.exports.PortBrorkenError = PortBrokenError;
+module.exports.PortTimeoutError = PortTimeoutError;
+module.exports.PortParseError = PortParseError;
