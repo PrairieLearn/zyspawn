@@ -58,9 +58,7 @@ class ZygotePool {
      * @param {function(Error)} callback Called after initialization,
      *      if not specified, errors will be throwed.
      */
-    constructor(zygoteNum, callback) {
-        callback = callback || DEFAULT_CALLBACK;
-
+    constructor(zygoteNum, callback = DEFAULT_CALLBACK) {
         this._isShutdown = false;
         this._totalZygoteNum = zygoteNum;
         this._zygoteManagerList = []; // TODO health check?
@@ -96,9 +94,7 @@ class ZygotePool {
      * their work.
      * @param {function(Error)} callback Called after all zygotes are shutdown.
      */
-    shutdown(callback) {
-        callback = callback || DEFAULT_CALLBACK;
-
+    shutdown(callback = DEFAULT_CALLBACK) {
         this._isShutdown = true;
 
         var jobs = [];
@@ -302,8 +298,7 @@ class ZygoteInterface {
      * @param {function(Error)} callback Called after the zygote is released
      *      or error happens. If not specified, errors will be throwed.
      */
-    done(callback) {
-        callback = callback || DEFAULT_CALLBACK;
+    done(callback = DEFAULT_CALLBACK) {
         this._done(callback);
     }
 }
