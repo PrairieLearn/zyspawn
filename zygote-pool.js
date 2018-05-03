@@ -60,12 +60,23 @@ class ZygotePool {
      */
     constructor(zygoteNum, callback = DEFAULT_CALLBACK) {
         this._isShutdown = false;
-        this._totalZygoteNum = zygoteNum;
+        this._totalZygoteNum = 0;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
+        this.addZygote(zygoteNum, callback);
+    }
+
+    /**
+     * Add zygotes to the pool.
+     * @param {number} num Number of zygotes to add
+     * @param {function(Error)} callback Called after zygotes are created,
+     *                                   or error happens
+     */
+    addZygote(num, callback = DEFAULT_CALLBACK) {
+        this._totalZygoteNum += num;
 
         var jobs = [];
-        for (let i = 0; i < this._totalZygoteNum; i++) {
+        for (let i = 0; i < num; i++) {
             jobs.push(new Promise((resolve) => {
                 ZygoteManager.create((err, zygoteManager) => {
                     if (!err) {
@@ -89,16 +100,20 @@ class ZygotePool {
     }
 
     /**
-     * Shutdown ZygotePool. Stop allocating idle zygotes but working zygotes
-     * won't be interrupted. All zygotes will be shutdown after they finish
-     * their work.
-     * @param {function(Error)} callback Called after all zygotes are shutdown.
+     * Remove zygotes from the pool.
+     * @param {number} num Number of zygotes to remove
+     * @param {function(Error)} callback Called after zygotes are removed,
+     *                                   or error happens
      */
-    shutdown(callback = DEFAULT_CALLBACK) {
-        this._isShutdown = true;
+    removeZygote(num, callback = DEFAULT_CALLBACK) {
+        if (num < this._totalZygoteNum) {
+            callback(new Error()); // TODO
+        }
 
+        this._totalZygoteNum -= num;
+        
         var jobs = [];
-        for (let i = 0; i < this._totalZygoteNum; i++) {
+        for (let i = 0; i < num; i++) {
             jobs.push(new Promise((resolve) => {
                 this._idleZygoteManagerQueue.get((err, zygoteManager) => {
                     assert(!err); // BlockingQueue.clearWaiting() is never called
@@ -114,6 +129,17 @@ class ZygotePool {
             // need to define error object
             // kill live zygotes when error happens?
         });
+    }
+
+    /**
+     * Shutdown ZygotePool. Stop allocating idle zygotes but working zygotes
+     * won't be interrupted. All zygotes will be shutdown after they finish
+     * their work.
+     * @param {function(Error)} callback Called after all zygotes are shutdown.
+     */
+    shutdown(callback = DEFAULT_CALLBACK) {
+        this._isShutdown = true;
+        this.removeZygote(this._totalZygoteNum, callback);
     }
 
     /**
