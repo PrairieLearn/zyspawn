@@ -304,7 +304,7 @@ class ZygoteManager {
             this.departingCallback(new Error("timeout while trying to kill zygote"));
             this.departingCallback = null;
             this.state = DEPARTED;
-        }, 3000);
+        }, 9000);
 
       this.child.stdio[4].write(JSON.stringify({action: 'kill self'})+'\n');
     }
