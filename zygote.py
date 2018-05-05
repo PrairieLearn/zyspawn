@@ -47,7 +47,6 @@ def waitForChild(signum, frame):
     #     jsonDict["code"] = 'no_child_err'
     #     jsonDict["signal"] = 'Unkown'
 
-    pid, status = os.waitpid(pid, os.WNOHANG)
 
     # This indicates the successful completion of the child
     # with the natural exit with no interuptions.
@@ -228,6 +227,7 @@ def parseInput(command_input):
         pid = getChildPid()
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
+        pid, status = os.waitpid(pid, os.WNOHANG)        
         message["success"] = True
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
