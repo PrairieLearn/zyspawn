@@ -67,7 +67,7 @@ def waitForChild(signum, frame):
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
     sys.stderr.write("[Zygote] child died");
-
+    
 
 # Function name is self explanitory
 # This function is called from the parseInput function

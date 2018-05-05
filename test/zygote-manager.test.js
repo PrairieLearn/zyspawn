@@ -88,8 +88,9 @@ test("Running Simple Method that times out", async (done) => {
           expect(err).toBeNull();
           zMan.startWorker((err)=>{
               expect(err).toBeNull();
-              zMan.call("test.py", "summer", [1,2], (err, output) => {
-                  expect(String(err)).toBe('ZySpawnError: Timeout on: function \"summer\" in file \"test.py\"');
+              let t = 0;
+              zMan.call("test/python-scripts/simple", "timeout", [], (err, output) => {
+                  expect(String(err)).toBe('ZySpawnError: Timeout on: function \"timeout\" in file \"test/python-scripts/simple\"');
                   zMan.killWorker((err) => {
                       expect(err).toBeNull();
                       var resp = zInterface.forceKillMyZygote();
@@ -205,13 +206,11 @@ test("Zygote call on non existing file", async (done) => {
               expect(err).toBeNull();
               zMan.call("who", "nonexsist", [10,2], (err, output) => {
                   expect(String(err)).toBe("ZySpawnError: Timeout on: function \"nonexsist\" in file \"who\"");
-                  zMan.killWorker((err) => {
-                        expect(String(err)).toBe("ZySpawnError: Internal error: Failed to kill worker due to: no current worker");
-                        var resp = zInterface.killMyZygote((err)=>{
-                            expect(err).toBeNull();
-                            zInterface = null;
-                            done();
-                        });
+                  console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!0");
+                  zInterface.killMyZygote((err)=>{
+                      expect(err).toBeNull();
+                      zInterface = null;
+                      done();
                   });
               });
           });
