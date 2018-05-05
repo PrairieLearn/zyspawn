@@ -33,6 +33,13 @@ const DEPARTING = Symbol('DEPARTING');
 const DEPARTED = Symbol('DEPARTED'); // The zygote has died
 const ERROR  = Symbol('ERROR');
 
+class BadStateError extends InternalZyspawnError {
+    constructor(validStates, state) {
+        const allowedStatesList = '[' + _.map(validStates, String).join(',') + ']';
+        super("Expected state(s): " + String(allowedStatesList) + " actually in: " + String(state));
+    }
+}
+
 /**
  * An object which manages a python zygote. All communications between
  * javascript and python is wrapped inside this object.
@@ -85,6 +92,9 @@ class ZygoteManager {
         this.child.stdio[6].setEncoding('utf8');
         // Add exit listener for child
         this.child.on('exit', this._zygoteExitListener.bind(this));
+
+
+        this.child.stdio[6].on('data', (data)=>{console.log(data);});
 
         this.state = CREATING;
         // Call back functions used by Manager for when transition to next node is done
@@ -272,26 +282,6 @@ class ZygoteManager {
                 console.log("TODO: REMOVE ME");
             };
         }
-        /*
-        this.pipe = new Port(this.child.stdio[4], this.child.stdio[5]);
-        this.pipe.send({action: "kill self"}, 100000, (err, message) => {
-            if (this.state == DEPARTED) {
-                // TODO Stop this maddness!! We don't need this?
-                // Can we please not have to specify a return pipe?
-                console.log("CHECKING CHECK CHECK CHECK!!!!");
-                return;
-            }
-
-            console.log("ERR KILL SELF IN STATE: " + String(this.state) );
-            if (err != null) {
-                this.state = ERROR;
-                this.departingCallback(new TimeoutError("Killing Zygote in state: " + String(this.state)));
-            } else {
-                this.departingCallback(new InternalZyspawnError("Killing Zygote: ", message));
-            }
-            this.pipe = null
-        });
-        */
         // TODO this cannot work with the pipe system, it needs to be updated to allow this to be replaced
         this.departingCallback = callback;
         this.timeoutID = setTimeout(() => {

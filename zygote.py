@@ -47,7 +47,6 @@ def waitForChild(signum, frame):
     #     jsonDict["code"] = 'no_child_err'
     #     jsonDict["signal"] = 'Unkown'
 
-    pid, status = os.waitpid(pid, os.WNOHANG)
 
     # This indicates the successful completion of the child
     # with the natural exit with no interuptions.
@@ -68,7 +67,7 @@ def waitForChild(signum, frame):
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
     sys.stderr.write("[Zygote] child died");
-
+    
 
 # Function name is self explanitory
 # This function is called from the parseInput function
@@ -239,6 +238,7 @@ def parseInput(command_input):
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
         message["success"] = True
+        os.waitpid(pid, 0)
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
         sys.exit(0);
@@ -272,7 +272,12 @@ try:
             sys.stderr.write(json_inp + ";");
             # unpack the input line as JSON
             input = json.loads(json_inp)
-            output = parseInput(input)
+            try:
+                output = parseInput(input)
+            except Exception as e:
+                output = {}
+                output["success"] = False
+                output["message"] = str(e)
             json_output = json.dumps(output)
             sys.stderr.write("[" + json_output + "]");
             outZygote.write(json_output + '\n')
