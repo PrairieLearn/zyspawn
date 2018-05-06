@@ -67,7 +67,7 @@ def waitForChild(signum, frame):
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
     sys.stderr.write("[Zygote] child died");
-    
+
 
 # Function name is self explanitory
 # This function is called from the parseInput function
@@ -83,7 +83,7 @@ def int_handler(signum, frame):
 
 def runWorker():
     # The output file descriptor.
-    with open(3, 'w', encoding='utf-8') as outf:
+    with open(3, 'w', encoding='utf-8') as outf, open(5, 'w', encoding='utf-8') as outZygote:
 
         # Infinite loop
         # Wait for the input commands through pipie 0 (aka stdin)
@@ -119,7 +119,19 @@ def runWorker():
             os.chdir(cwd)
             #sys.stderr.write("Dir: " + os.__dirname + ">>");
             # load the "file" as a module
-            mod = importlib.import_module(file)
+            try:
+                mod = importlib.import_module(file)
+            except Exception as e:
+                output = {}
+                output["present"] = False
+                ouput["message"] = str(e)
+                output["error"] = "File not present in the current directory"
+                json_output = json.dumps(output)
+                outZygote.write(json_output)
+                outZygote.write("\n")
+                outZygote.flush()
+                continue
+
 
             # Check if we have the required fcn in the module
             if hasattr(mod, fcn):
