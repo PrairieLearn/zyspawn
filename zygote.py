@@ -116,12 +116,24 @@ def runWorker():
             sys.path.insert(0, cwd)
 
             # change to the desired working directory
-            os.chdir(cwd)
+            try:
+                os.chdir(cwd)
+            except Exception as e:
+                # Directory is invalid
+                output = {}
+                output["present"] = False
+                ouptut["message"] = str(e)
+                output["error"] = "File path invalid"
+                outZygote.write(json_output)
+                outZygote.write("\n")
+                outZygote.flush()
+                continue
             #sys.stderr.write("Dir: " + os.__dirname + ">>");
             # load the "file" as a module
             try:
                 mod = importlib.import_module(file)
             except Exception as e:
+                # File nonexstant
                 output = {}
                 output["present"] = False
                 ouput["message"] = str(e)
