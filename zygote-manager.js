@@ -94,7 +94,7 @@ class ZygoteManager {
         this.child.on('exit', this._zygoteExitListener.bind(this));
 
 
-        this.child.stdio[6].on('data', (data)=>{console.log(data);});
+        this.child.stdio[6].on('data', (data)=>{/*console.log(data);*/});
 
         this.state = CREATING;
         // Call back functions used by Manager for when transition to next node is done
@@ -209,17 +209,24 @@ class ZygoteManager {
         this.lastCallData = callData;
         this.state = IN_CALL;
         this.callPort.send(callData, 3000, (err, message) => {
+            var output = new Output(this.outputStdout, this.outputStderr, message);
             if (err != null) {
                 this.state = ERROR;
-                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""), this);
+                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""), output);
             } else {
                 if (message['present']) {
                   this.state = READY;
-                  callback(null, new Output(this.outputStdout, this.outputStderr, message));
+                  callback(null, output);
                 } else {
                   // TODO we can read from the message to see internal state/specificly what went wrong
                   this.state = READY;
-                  callback(new FunctionMissingError(functionName, fileName), new Output(this.outputStdout, this.outputStderr, message)); // TODO implement stderr and stdout
+                  if (message['error'] == "Function not present") {
+                      callback(new FunctionMissingError(functionName, fileName), output); // TODO implement stderr and stdout
+                  } else if (message['error'] == "File not present in the current directory") {
+                      callback(new FileMissingError(fileName), output);
+                  } else {
+                        callback(new InternalZyspawnError(message['message'] + " " + message['error']), output);
+                  }
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
             }

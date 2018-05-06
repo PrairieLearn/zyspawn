@@ -83,7 +83,7 @@ def int_handler(signum, frame):
 
 def runWorker():
     # The output file descriptor.
-    with open(3, 'w', encoding='utf-8') as outf, open(5, 'w', encoding='utf-8') as outZygote:
+    with open(3, 'w', encoding='utf-8') as outf:
 
         # Infinite loop
         # Wait for the input commands through pipie 0 (aka stdin)
@@ -124,9 +124,9 @@ def runWorker():
                 output["present"] = False
                 ouptut["message"] = str(e)
                 output["error"] = "File path invalid"
-                outZygote.write(json_output)
-                outZygote.write("\n")
-                outZygote.flush()
+                outf.write(json_output)
+                outf.write("\n")
+                outf.flush()
                 continue
             #sys.stderr.write("Dir: " + os.__dirname + ">>");
             # load the "file" as a module
@@ -136,12 +136,12 @@ def runWorker():
                 # File nonexstant
                 output = {}
                 output["present"] = False
-                ouput["message"] = str(e)
+                #ouput["message"] = str(e)
                 output["error"] = "File not present in the current directory"
                 json_output = json.dumps(output)
-                outZygote.write(json_output)
-                outZygote.write("\n")
-                outZygote.flush()
+                outf.write(json_output)
+                outf.write("\n")
+                outf.flush()
                 continue
 
 
@@ -182,12 +182,8 @@ def runWorker():
                 # the function wasn't present, so report this
                 output = {}
                 output["present"] = False
-                output["error"] = "File not present in the current directory"
-                json_output = json.dumps(output)
-                outZygote.write(json_output)
-                outZygote.write("\n")
-                outZygote.flush()
-                json_outp = json.dumps({"present": False})
+                output["error"] = "Function not present"
+                json_outp = json.dumps(output)
 
             # make sure all output streams are flushed
             sys.stderr.flush()

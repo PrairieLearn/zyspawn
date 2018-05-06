@@ -205,12 +205,14 @@ test("Zygote call on non existing file", async (done) => {
           zMan.startWorker((err, zyInt)=>{
               expect(err).toBeNull();
               zMan.call("who", "nonexsist", [10,2], (err, output) => {
-                  expect(String(err)).toBe("ZySpawnError: Timeout on: function \"nonexsist\" in file \"who\"");
-                  console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!0");
-                  zInterface.killMyZygote((err)=>{
+                  expect(String(err)).toBe("ZySpawnError: Missing file who");
+                  zMan.killWorker((err)=>{
                       expect(err).toBeNull();
-                      zInterface = null;
-                      done();
+                      zMan.killMyZygote((err)=>{
+                          expect(err).toBeNull();
+                          zInterface = null;
+                          done();
+                      });
                   });
               });
           });

@@ -14,12 +14,12 @@ test("Create and shutdown test", async () => {
     });
 
     expect(zygotePool.idleZygoteNum()).toBe(5);
-    
+
     var zygoteInterface = zygotePool.request();
 
     // zygotes are lazily allocated
     expect(zygotePool.idleZygoteNum()).toBe(5);
-    
+
     await new Promise((resolve) => {
         zygoteInterface.done((err) => {
             expect(err).toBeFalsy();
@@ -63,7 +63,7 @@ test("Simple call test", async () => {
 
 
 test("Call non-existing function test", async () => {
-    var zygotePool = new ZygotePool(5);
+    var zygotePool = new ZygotePool(1);
     var zygoteInterface = zygotePool.request();
 
     zygoteInterface.call("test/python-scripts/simple", "nonexsist", null,
