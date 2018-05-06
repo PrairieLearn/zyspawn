@@ -180,6 +180,13 @@ def runWorker():
                     json_outp = json.dumps({"present": True, "val": val})
             else:
                 # the function wasn't present, so report this
+                output = {}
+                output["present"] = False
+                output["error"] = "File not present in the current directory"
+                json_output = json.dumps(output)
+                outZygote.write(json_output)
+                outZygote.write("\n")
+                outZygote.flush()
                 json_outp = json.dumps({"present": False})
 
             # make sure all output streams are flushed
