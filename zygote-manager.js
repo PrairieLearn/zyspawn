@@ -334,7 +334,7 @@ class ZygoteManager {
             }
             this.departingCallback = null;
         }, 3000);
-        this.child.kill('SIGINT');
+        this.child.kill('SIGKILL');
     }
 
     _checkState(allowedStates, from=null) {
@@ -528,12 +528,15 @@ class ZygoteManager {
             callback(new Error('invalid ZygoteManager state for killWorker()'), null);
             return;
         }
-
+        if(!this.workerSpawned){
+          console.log("KSJhdiuaush dhsdish dahdiua hd");
+        }
         this.state = EXITING;
 
         this.controlPort.send({action: 'kill worker'}, 1000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
+                this.workerSpawned = false;
                 callback(new TimeoutError("Killing Worker"));
             } else {
                 if (message['success']) {
