@@ -23,13 +23,12 @@ test("Spawn Work Zygote Test", async (done) => {
               done();
           });
     }, "test/zygotes/spawnWorkZygote.py");
-
 });
 
 test("Spawn Fail Refuse Zygote Test", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
-          expect(String(err)).toBe("Error: Timeout creating zygote");
+          expect(String(err)).toBe("ZySpawnError: Timeout on: Creating Zygote");
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
           done();
@@ -39,7 +38,7 @@ test("Spawn Fail Refuse Zygote Test", async (done) => {
 test("Spawn Fail Message Test", async (done) => {
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
-          expect(String(err)).toBe("Error: _createdMessageHandler Failed with messsage: Failed to create myself...somehow");
+          expect(String(err)).toBe("ZySpawnError: Internal error: _createdMessageHandler Failed with messsage: Failed to create myself...somehow");
           // TODO replace with non-force kill
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
@@ -52,7 +51,7 @@ test("Spawn Worker Timeout Test", async (done) => {
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err)=>{
-              expect(String(err)).toBe("Error: Timeout starting worker");
+              expect(String(err)).toBe("ZySpawnError: Timeout on: Creating Worker");
               var resp = zInterface.forceKillMyZygote();
               zInterface = null;
               done();
@@ -89,8 +88,9 @@ test("Running Simple Method that times out", async (done) => {
           expect(err).toBeNull();
           zMan.startWorker((err)=>{
               expect(err).toBeNull();
-              zMan.call("test.py", "summer", [1,2], (err, output) => {
-                  expect(String(err)).toBe('Error: Timed out on calling: "summer" in "test.py"');
+              let t = 0;
+              zMan.call("test/python-scripts/simple", "timeout", [], (err, output) => {
+                  expect(String(err)).toBe('ZySpawnError: Timeout on: function \"timeout\" in file \"test/python-scripts/simple\"');
                   zMan.killWorker((err) => {
                       expect(err).toBeNull();
                       var resp = zInterface.forceKillMyZygote();
@@ -100,7 +100,6 @@ test("Running Simple Method that times out", async (done) => {
               });
           });
     }, "test/zygotes/spawnRunTimeoutZygote.py");
-
 });
 
 test("Zygote call on add python", async (done) => {
@@ -186,7 +185,7 @@ test("Zygote call on non existing function", async (done) => {
           zMan.startWorker((err)=>{
               expect(err).toBeNull();
               zMan.call("test/python-scripts/simple", "nonexsist", [10,2], (err, output) => {
-                  expect(String(err)).toBe("FunctionMissingError: Function not found in module");
+                  expect(String(err)).toBe("ZySpawnError: Missing function \"nonexsist\" in file \"test/python-scripts/simple\"");
                   zMan.killWorker((err) => {
                         expect(err).toBeNull();
                         var resp = zInterface.forceKillMyZygote();
@@ -206,19 +205,20 @@ test("Zygote call on non existing file", async (done) => {
           zMan.startWorker((err, zyInt)=>{
               expect(err).toBeNull();
               zMan.call("who", "nonexsist", [10,2], (err, output) => {
-                  expect(String(err)).toBe("Error: Timed out on calling: \"nonexsist\" in \"who\"");
-                  zMan.killWorker((err) => {
-                        expect(String(err)).toBe("Error: no current worker");
-                        var resp = zInterface.killMyZygote((err)=>{
-                            expect(err).toBeNull();
-                            zInterface = null;
-                            done();
-                        });
+                  expect(String(err)).toBe("ZySpawnError: Missing file who");
+                  zMan.killWorker((err)=>{
+                      expect(err).toBeNull();
+                      zMan.killMyZygote((err)=>{
+                          expect(err).toBeNull();
+                          zInterface = null;
+                          done();
+                      });
                   });
               });
           });
-    }, "zygote.py",true);
+    });
 });
+
 
 test("Zygote reuse zygote", async (done) => {
     jest.setTimeout(10000);

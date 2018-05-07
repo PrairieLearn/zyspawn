@@ -6,6 +6,7 @@ const util = require('util')
 class ZyspawnError extends Error {
     constructor(message) {
         super(message);
+        this.name = 'ZySpawnError';
     }
 }
 
@@ -14,7 +15,7 @@ class ZyspawnError extends Error {
  */
 class InternalZyspawnError extends ZyspawnError {
     constructor(message) {
-        super(message);
+        super("Internal error: " + message);
     }
 }
 
@@ -26,8 +27,21 @@ class FunctionMissingError extends ZyspawnError {
     /**
      * @param {string} message the message correlated with the missing function
      */
-    constructor(message) {
-        super(message);
+    constructor(funcname, filename) {
+        super("Missing function \"" + funcname + "\" in file \"" + filename + "\"");
+    }
+}
+
+/**
+ * Error when file is missing. Occurs in
+ *      ZygoteInterface.call()
+ */
+class FileMissingError extends ZyspawnError {
+    /**
+     * @param {string} message the message correlated with the missing function
+     */
+    constructor(filename) {
+        super("Missing file " + filename);
     }
 }
 
@@ -37,13 +51,27 @@ class FunctionMissingError extends ZyspawnError {
  *      // TODO ...
  */
 class InvalidOperationError extends ZyspawnError {
-    constructor(message) {
-        super(message);
+    constructor(issue) {
+        super("invald operation: " + issue);
+    }
+}
+
+/**
+ * Error when a method is timesout
+ *      ZygoteInterface.call()
+ *      // TODO ...
+ */
+class TimeoutError extends ZyspawnError {
+    constructor(timeoutDesc) {
+        super("Timeout on: " + timeoutDesc);
     }
 }
 
 
+// const {ZyspawnError, InternalZyspawnError, FileMissingError, FunctionMissingError, InvalidOperationError, TimeoutError}
 module.exports.ZyspawnError = ZyspawnError;
 module.exports.InternalZyspawnError = InternalZyspawnError;
+module.exports.FileMissingError = FileMissingError;
 module.exports.FunctionMissingError = FunctionMissingError;
 module.exports.InvalidOperationError = InvalidOperationError;
+module.exports.TimeoutError = TimeoutError;

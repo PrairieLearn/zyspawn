@@ -3,3 +3,7 @@ def add(x, y):
 
 def bad():
     return 1/0;
+
+def timeout():
+    while True:
+        pass

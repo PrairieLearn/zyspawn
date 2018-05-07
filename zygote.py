@@ -47,7 +47,6 @@ def waitForChild(signum, frame):
     #     jsonDict["code"] = 'no_child_err'
     #     jsonDict["signal"] = 'Unkown'
 
-    pid, status = os.waitpid(pid, os.WNOHANG)
 
     # This indicates the successful completion of the child
     # with the natural exit with no interuptions.
@@ -72,6 +71,15 @@ def waitForChild(signum, frame):
 
 # Function name is self explanitory
 # This function is called from the parseInput function
+
+def int_handler(signum, frame):
+    if(getChildPid() == -1):
+        sys.exit(0)
+    else:
+        pid = getChildPid()
+        setChildPid(-1)
+        os.kill(pid, signal.SIGKILL)
+        sys.exit(0)
 
 def runWorker():
     # The output file descriptor.
@@ -108,10 +116,34 @@ def runWorker():
             sys.path.insert(0, cwd)
 
             # change to the desired working directory
-            os.chdir(cwd)
+            try:
+                os.chdir(cwd)
+            except Exception as e:
+                # Directory is invalid
+                output = {}
+                output["present"] = False
+                ouptut["message"] = str(e)
+                output["error"] = "File path invalid"
+                outf.write(json_output)
+                outf.write("\n")
+                outf.flush()
+                continue
             #sys.stderr.write("Dir: " + os.__dirname + ">>");
             # load the "file" as a module
-            mod = importlib.import_module(file)
+            try:
+                mod = importlib.import_module(file)
+            except Exception as e:
+                # File nonexstant
+                output = {}
+                output["present"] = False
+                #ouput["message"] = str(e)
+                output["error"] = "File not present in the current directory"
+                json_output = json.dumps(output)
+                outf.write(json_output)
+                outf.write("\n")
+                outf.flush()
+                continue
+
 
             # Check if we have the required fcn in the module
             if hasattr(mod, fcn):
@@ -148,7 +180,10 @@ def runWorker():
                     json_outp = json.dumps({"present": True, "val": val})
             else:
                 # the function wasn't present, so report this
-                json_outp = json.dumps({"present": False})
+                output = {}
+                output["present"] = False
+                output["error"] = "Function not present"
+                json_outp = json.dumps(output)
 
             # make sure all output streams are flushed
             sys.stderr.flush()
@@ -213,6 +248,7 @@ def parseInput(command_input):
         setChildPid(os.fork())
         if (getChildPid() == 0):
             # We are child
+            setChildPid(-1)
             runWorker()
             sys.exit(1) # exit with error code if child exits runWorker
         else:
@@ -229,6 +265,7 @@ def parseInput(command_input):
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
         message["success"] = True
+        os.waitpid(pid, 0)
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
         sys.exit(0);
@@ -253,6 +290,7 @@ try:
         # infinite loop for Zygote to recieve commands
         # Zygote will not exit on its own
         # Unless it recieves a SIGTERM or SIGKILL
+        signal.signal(signal.SIGTERM, int_handler)
         while True:
             # wait for a single line of input from command pipe
             json_inp = inZygote.readline().strip()
@@ -261,7 +299,12 @@ try:
             sys.stderr.write(json_inp + ";");
             # unpack the input line as JSON
             input = json.loads(json_inp)
-            output = parseInput(input)
+            try:
+                output = parseInput(input)
+            except Exception as e:
+                output = {}
+                output["success"] = False
+                output["message"] = str(e)
             json_output = json.dumps(output)
             sys.stderr.write("[" + json_output + "]");
             outZygote.write(json_output + '\n')
