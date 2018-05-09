@@ -289,26 +289,27 @@ class ZygoteInterface {
 
     /**
      * Run a function in a python script (See ZygoteManager.run()).
-     * @param {String} fileName The file where the function resides
+     * @param {String} moduleName The module where the function resides
      * @param {String} functionName The function to run
-     * @param {object} arg JSON object as arguments for the function
+     * @param {Array} arg Arguments for the function as an array
+     * @param {Object} options Include optional cwd (as absolute path), paths and timeout.
      * @param {function(Error, Output)} callback Called when the result is computed
      *      or any error happens. Output contains tree fields: stdout(String),
      *      stderr(String), result(object)
      */
-    call(fileName, functionName, arg, callback) {
+    call(moduleName, functionName, arg, options, callback) {
         switch (this.state()) {
         case ZygoteInterface.UNINITIALIZED:
             this._zygotePool._allocateZygoteManager(this, (err) => {
                 if (err) { // Failure in ZygoteManager.startWorker()
                     callback(err);
                 } else {
-                    this._zygoteManager.call(fileName, functionName, arg, callback);
+                    this._zygoteManager.call(moduleName, functionName, arg, options, callback);
                 }
             });
             break;
         case ZygoteInterface.INITIALIZED:
-            this._zygoteManager.call(fileName, functionName, arg, callback);
+            this._zygoteManager.call(moduleName, functionName, arg, options, callback);
             break;
         case ZygoteInterface.FINALIZED:
             callback(new Error()); // TODO Error type

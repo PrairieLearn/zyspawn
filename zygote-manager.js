@@ -165,7 +165,8 @@ class ZygoteManager {
      * Call a function in a python script.
      * @param {String} fileName The file where the function resides
      * @param {String} functionName The function to run
-     * @param {object} arg JSON object as arguments for the function
+     * @param {Array} arg Arguments for the function as an array
+     * @param {Object} options Include optional cwd (as absolute path), paths and timeout.
      * @param {function(Error, Output)} callback Called when the result is computed
      *                                           or any error happens
      *
@@ -174,7 +175,7 @@ class ZygoteManager {
      * and this ZygoteManager should no longer be used. Users need to create
      * a new ZygoteManager and restart their work.
      */
-    call(fileName, functionName, args, callback) {
+    call(fileName, functionName, args, options, callback) {
         if (this.debugMode) {
           console.log(util.format("[ZygoteManager] Running %s:%s", fileName, functionName));
         }
@@ -188,15 +189,19 @@ class ZygoteManager {
             callback(new Error('Invalid ZygoteManager state for call()'));
             return;
         }
-        // TODO add a check for relative vs absolute file paths: I think this already in?
-        var filepath = path.join(__dirname, fileName);
+
+        _.defaults(options, {
+            cwd: __dirname,
+            paths: [],
+            timeout: 3000,
+        });
 
         const callData = {
-            file: path.basename(filepath),
+            file: fileName,
             fcn: functionName,
             args: args,
-            cwd: path.dirname(filepath),
-            paths: [],
+            cwd: options.cwd,
+            paths: options.paths,
         };
         const callDataString = JSON.stringify(callData);
         //this.incallCallBack = callback;
@@ -210,7 +215,7 @@ class ZygoteManager {
 
         this.lastCallData = callData;
         this.state = IN_CALL;
-        this.callPort.send(callData, 3000, (err, message) => {
+        this.callPort.send(callData, options.timeout, (err, message) => {
             var output = new Output(this.outputStdout, this.outputStderr, message);
             if (err != null) {
                 this.state = ERROR;
@@ -232,26 +237,7 @@ class ZygoteManager {
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
             }
-            this.pipe = null;
         });
-        /*
-        this.timeoutID = setTimeout(() => {
-            if (this.debugMode) {
-              console.log(util.format("[ZygoteManager] Timeout on %s.%s", fileName, functionName));
-            }
-            this.state = ERROR; // TODO Make this better. I can see this causing issues
-            this.timeoutID = null;
-            this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'));
-            this.incallCallBack = null;
-        }, 3000);
-
-        const err = this.stdinWrite(callDataString + '\n');
-        /*
-        if (err != null) {
-            this.incallCallBack(err, null);
-            this._clearTimeout();
-            this.incallCallBack = null;
-        }*/
     }
 
     /**

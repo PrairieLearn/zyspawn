@@ -1,7 +1,13 @@
 const util = require('util');
+const path = require('path');
 const { ZygotePool } = require('../zygote-pool');
 const { ZygoteInterface } = require('../zygote-pool');
 const {timeout} = require('./test-util');
+
+const options = {
+    cwd: path.join(__dirname, 'python-scripts')
+}
+
 var zyPool = null;
 
 afterEach((done)=>{
@@ -11,7 +17,7 @@ afterEach((done)=>{
 test("Simple test for ZyInterface", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
             expect(output.result["val"]).toBe(3);
             zyInt.done(done);
@@ -22,8 +28,8 @@ test("Simple test for ZyInterface", async (done)=>{
 test("Unknown method test for ZyInterface", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("test/python-scripts/simple", "unkown", [1,2], (err, output) => {
-            expect(String(err)).toBe("ZySpawnError: Missing function \"unkown\" in file \"test/python-scripts/simple\"");
+        zyInt.call("simple", "unkown", [1,2], options, (err, output) => {
+            expect(String(err)).toBe("ZyspawnError: Missing function \"unkown\" in file \"simple\"");
             zyInt.done(done);
         });
     });
@@ -32,10 +38,10 @@ test("Unknown method test for ZyInterface", async (done)=>{
 test("2 Calls test for ZyInterface", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
             expect(output.result["val"]).toBe(3);
-            zyInt.call("test/python-scripts/simple", "add", [-5,9], (err, output) => {
+            zyInt.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result["val"]).toBe(4);
                 zyInt.done(done);
@@ -48,10 +54,10 @@ test("Multiple test for single ZyInterface", async (done)=>{
     var tracker = 0;
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
             expect(output.result["val"]).toBe(3);
-            zyInt.call("test/python-scripts/simple", "add", [-5,9], (err, output) => {
+            zyInt.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result["val"]).toBe(4);
                 tracker++;
@@ -60,10 +66,10 @@ test("Multiple test for single ZyInterface", async (done)=>{
         });
 
         var zyInt2 = zyPool.request();
-        zyInt.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
             expect(output.result["val"]).toBe(3);
-            zyInt.call("test/python-scripts/simple", "add", [-5,9], (err, output) => {
+            zyInt.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result["val"]).toBe(4);
                 tracker++;
@@ -78,10 +84,10 @@ test("Multiple test for 2 ZyInterfaces", async (done)=>{
     var tracker = 0;
     zyPool = new ZygotePool(2, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
             expect(output.result["val"]).toBe(3);
-            zyInt.call("test/python-scripts/simple", "add", [-5,9], (err, output) => {
+            zyInt.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result["val"]).toBe(4);
                 tracker++;
@@ -94,10 +100,10 @@ test("Multiple test for 2 ZyInterfaces", async (done)=>{
         });
 
         var zyInt2 = zyPool.request();
-        zyInt2.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt2.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
             expect(output.result["val"]).toBe(3);
-            zyInt2.call("test/python-scripts/simple", "add", [-5,9], (err, output) => {
+            zyInt2.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result["val"]).toBe(4);
                 tracker++;

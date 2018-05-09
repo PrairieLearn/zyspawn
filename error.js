@@ -6,7 +6,7 @@ const util = require('util')
 class ZyspawnError extends Error {
     constructor(message) {
         super(message);
-        this.name = 'ZySpawnError';
+        this.name = 'ZyspawnError';
     }
 }
 

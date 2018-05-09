@@ -55,7 +55,7 @@ def waitForChild(signum, frame):
         jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
         if getChildPid() != -1:
-            setChildPid(-1);
+            setChildPid(-1)
 
     # Message when the child is interupted!
     else:
@@ -66,7 +66,7 @@ def waitForChild(signum, frame):
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    sys.stderr.write("[Zygote] child died");
+    sys.stderr.write("[Zygote] child died")
 
 
 # Function name is self explanitory
@@ -96,7 +96,7 @@ def runWorker():
             json_inp = sys.stdin.readline().strip()
             if(json_inp is None or json_inp == ""):
                 continue
-            sys.stderr.write("::" + json_inp + "::\n");
+            sys.stderr.write("::" + json_inp + "::\n")
 
             # Executing instructions after detected within pipe.
 
@@ -128,7 +128,7 @@ def runWorker():
                 outf.write("\n")
                 outf.flush()
                 continue
-            #sys.stderr.write("Dir: " + os.__dirname + ">>");
+            #sys.stderr.write("Dir: " + os.__dirname + ">>")
             # load the "file" as a module
             try:
                 mod = importlib.import_module(file)
@@ -136,7 +136,7 @@ def runWorker():
                 # File nonexstant
                 output = {}
                 output["present"] = False
-                #ouput["message"] = str(e)
+                output["message"] = str(e)
                 output["error"] = "File not present in the current directory"
                 json_output = json.dumps(output)
                 outf.write(json_output)
@@ -191,7 +191,7 @@ def runWorker():
 
             # write the return value (JSON on a single line)
             outf.write(json_outp)
-            outf.write("\n");
+            outf.write("\n")
             outf.flush()
 
 saved_path = copy.copy(sys.path)
@@ -268,7 +268,7 @@ def parseInput(command_input):
         os.waitpid(pid, 0)
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
-        sys.exit(0);
+        sys.exit(0)
     elif (action == "status"):
         message["success"] = True
         status =  "not created" if (getChildPid()==-1) else "created"
@@ -296,7 +296,7 @@ try:
             json_inp = inZygote.readline().strip()
             if (json_inp is None or json_inp == ""):
                 continue
-            sys.stderr.write(json_inp + ";");
+            sys.stderr.write(json_inp + ";")
             # unpack the input line as JSON
             input = json.loads(json_inp)
             try:
@@ -306,7 +306,7 @@ try:
                 output["success"] = False
                 output["message"] = str(e)
             json_output = json.dumps(output)
-            sys.stderr.write("[" + json_output + "]");
+            sys.stderr.write("[" + json_output + "]")
             outZygote.write(json_output + '\n')
             outZygote.flush()
 except Exception as e:
@@ -317,4 +317,4 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->");
+    sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
