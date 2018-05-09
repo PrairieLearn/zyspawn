@@ -44,7 +44,7 @@ const _ = require('lodash');
 const assert = require('assert');
 const BlockingQueue = require('./blocking-queue');
 const ZygoteManager = require('./zygote-manager');
-const { ZyspawnError, InternalZyspawnError } = require('./error');
+const { ZyspawnError, InternalZyspawnError, InvalidOperationError } = require('./error');
 
 const DEFAULT_CALLBACK = (err) => { if(err) throw err; };
 
@@ -106,8 +106,10 @@ class ZygotePool {
      *                                   or error happens
      */
     removeZygote(num, callback = DEFAULT_CALLBACK) {
-        if (num < this._totalZygoteNum) {
-            callback(new Error()); // TODO
+        if (num > this._totalZygoteNum) {
+            callback(new InvalidOperationError(
+                `Trying to remove ${num} zygote(s) while totalZygoteNum is ${this._totalZygoteNum}`
+            ));
         }
 
         this._totalZygoteNum -= num;
@@ -312,7 +314,7 @@ class ZygoteInterface {
             this._zygoteManager.call(moduleName, functionName, arg, options, callback);
             break;
         case ZygoteInterface.FINALIZED:
-            callback(new Error()); // TODO Error type
+            callback(new InvalidOperationError("Calling call() after done() on ZygoteInterface"));
             break;
         default:
             assert(false, "Bad state of ZygoteInterface: " + this.state());

@@ -52,7 +52,7 @@ class FileMissingError extends ZyspawnError {
  */
 class InvalidOperationError extends ZyspawnError {
     constructor(issue) {
-        super("invald operation: " + issue);
+        super("Invald operation: " + issue);
     }
 }
 
