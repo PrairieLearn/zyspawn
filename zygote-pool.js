@@ -1,14 +1,14 @@
 /**
  * @fileoverview
  * This module manages a pool of python zygotes and includes API to use them.
- * 
+ *
  * Usage: // TODO need to be updated
  *  const {ZygotePool} = require('zygote-pool');
- * 
+ *
  *  var zygotePool = new ZygotePool(10);
- * 
+ *
  *  var zygoteInterface = zygotePool.request();
- * 
+ *
  *  zygoteInterface.call(
  *      "file-name",
  *      "function-name",
@@ -27,18 +27,18 @@
  *          }
  *      }
  *  );
- * 
+ *
  * Design:
  *  TODO
- * 
+ *
  * Error handling:
  *  TODO
- * 
+ *
  * Dependencies:
  *  ./blocking-queue.js
  *  ./zygote-manager.js
  *  ./zygote.py
- * 
+ *
  */
 const _ = require('lodash');
 const assert = require('assert');
@@ -58,7 +58,7 @@ class ZygotePool {
      * @param {function(Error)} callback Called after initialization,
      *      if not specified, errors will be throwed.
      */
-    constructor(zygoteNum, callback = DEFAULT_CALLBACK) {
+    constructor(zygoteNum, callback = DEFAULT_CALLBACK, debugMode = false) {
         this._isShutdown = false;
         this._totalZygoteNum = 0;
         this._zygoteManagerList = []; // TODO health check?
@@ -72,13 +72,13 @@ class ZygotePool {
      * @param {function(Error)} callback Called after zygotes are created,
      *                                   or error happens
      */
-    addZygote(num, callback = DEFAULT_CALLBACK) {
+    addZygote(num, callback = DEFAULT_CALLBACK, debugMode = false) {
         this._totalZygoteNum += num;
 
         var jobs = [];
         for (let i = 0; i < num; i++) {
             jobs.push(new Promise((resolve) => {
-                ZygoteManager.create((err, zygoteManager) => {
+                ZygoteManager.create((err, zygoteManager, debugMode) => {
                     if (!err) {
                         this._zygoteManagerList.push(zygoteManager);
                         this._idleZygoteManagerQueue.put(zygoteManager);
@@ -111,7 +111,7 @@ class ZygotePool {
         }
 
         this._totalZygoteNum -= num;
-        
+
         var jobs = [];
         for (let i = 0; i < num; i++) {
             jobs.push(new Promise((resolve) => {
@@ -214,7 +214,7 @@ class ZygotePool {
 
     /**
      * Reclaim the ZygoteManager from a ZygoteInterface.
-     * @param {ZygoteInterface} zygoteInterface 
+     * @param {ZygoteInterface} zygoteInterface
      * @param {function(Error)} callback Called after the ZygoteManager is reclaimed
      *                                   or error happens
      */
@@ -241,7 +241,7 @@ class ZygotePool {
  * A handle object representing a working zygote and hiding implementation
  * details. It wraps a ZygoteManager internally and is registered with a
  * done() function which releases the resource.
- * 
+ *
  * Notice:
  * Users must call done() method to release resources after finishing
  * their work.
@@ -253,7 +253,7 @@ class ZygoteInterface {
         this._done = (callback) => { callback(null); };
         this._state = ZygoteInterface.UNINITIALIZED;
     }
-    
+
     /**
      * Initialize with a ready ZygoteManager and done function
      * @param {ZygoteManager} zygoteManager A ready ZygoteManager
@@ -309,7 +309,7 @@ class ZygoteInterface {
             break;
         case ZygoteInterface.INITIALIZED:
             this._zygoteManager.call(fileName, functionName, arg, callback);
-            break;        
+            break;
         case ZygoteInterface.FINALIZED:
             callback(new Error()); // TODO Error type
             break;

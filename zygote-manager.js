@@ -200,7 +200,9 @@ class ZygoteManager {
         };
         const callDataString = JSON.stringify(callData);
         //this.incallCallBack = callback;
-
+        if (this.debugMode) {
+            console.log("Calling fucntion: " + callDataString);
+        }
         this.outputStdout = '';
         this.outputStderr = '';
         this.outputBoth = '';
