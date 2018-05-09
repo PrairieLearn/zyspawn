@@ -40,14 +40,14 @@ const roundCheck = function(zMan, done, rounds) {
             var b = getRandomInt(100);
             zMan.call("simple", "add", [a,b], options, (err, output) => {
                 expect(err).toBeNull();
-                expect(output.result["val"]).toBe(a+b);
+                expect(output.result).toBe(a+b);
                 roundCheck(zMan, done, rounds-1);
             });
             break;
           case 1:
             zMan.call("strings", "count", ["abababab","ab"], options, (err, output) => {
                 expect(err).toBeNull();
-                expect(output.result["val"]).toBe(4);
+                expect(output.result).toBe(4);
                 roundCheck(zMan, done, rounds-1);
             });
             break;
@@ -56,7 +56,7 @@ const roundCheck = function(zMan, done, rounds) {
             var b = getRandomInt(3)+3;
             zMan.call("strings", "substring", ["abababab", a, b], options, (err, output) => {
                 expect(err).toBeNull();
-                expect(output.result["val"]).toBe("abababab".substring(a,b));
+                expect(output.result).toBe("abababab".substring(a,b));
                 roundCheck(zMan, done, rounds-1);
             });
             break;

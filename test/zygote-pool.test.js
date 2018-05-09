@@ -51,7 +51,7 @@ test("Simple call test", async () => {
     zygoteInterface.call("simple", "add", [1,2], options,
         (err, output) => {
             expect(err).toBeFalsy();
-            expect(output.result.val).toBe(3);
+            expect(output.result).toBe(3);
             zygoteInterface.done();
         }
     );

@@ -25,7 +25,7 @@ const roundCheck = function (zyInt, number, handleDone) {
     } else {
         zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
-            expect(output.result["val"]).toBe(3);
+            expect(output.result).toBe(3);
             roundCheck(zyInt, number-1, handleDone);
         });
     }

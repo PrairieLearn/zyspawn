@@ -116,7 +116,7 @@ test("Zygote call on add python", async (done) => {
               expect(err).toBeNull();
               zMan.call("simple", "add", [1,2], options, (err, output) => {
                   expect(err).toBeNull();
-                  expect(output.result["val"]).toBe(3);
+                  expect(output.result).toBe(3);
                   zMan.killWorker((err) => {
                         expect(err).toBeNull();
                         var resp = zInterface.forceKillMyZygote();
@@ -137,10 +137,10 @@ test("Zygote call on python multiple methods", async (done) => {
               expect(err).toBeNull();
               zMan.call("simple", "add", [1,2], options, (err, output) => {
                   expect(err).toBeNull();
-                  expect(output.result["val"]).toBe(3);
+                  expect(output.result).toBe(3);
                   zMan.call("simple", "add", [-11,10], options, (err, output) => {
                       expect(err).toBeNull();
-                      expect(output.result["val"]).toBe(-1);
+                      expect(output.result).toBe(-1);
                       zMan.killWorker((err) => {
                             expect(err).toBeNull();
                             var resp = zInterface.forceKillMyZygote();
@@ -162,13 +162,13 @@ test("Zygote call on add python multiple files", async (done) => {
               expect(err).toBeNull();
               zMan.call("simple", "add", [10,2], options, (err, output) => {
                   expect(err).toBeNull();
-                  expect(output.result["val"]).toBe(12);
+                  expect(output.result).toBe(12);
                   zMan.call("strings", "count", ["ababab","ab"], options, (err, output) => {
                       expect(err).toBeNull();
-                      expect(output.result["val"]).toBe(3);
+                      expect(output.result).toBe(3);
                       zMan.call("strings", "substring", ["laughter",2,5], options, (err, output) => {
                           expect(err).toBeNull();
-                          expect(output.result["val"]).toBe("ugh");
+                          expect(output.result).toBe("ugh");
                           zMan.killWorker((err) => {
                                 expect(err).toBeNull();
                                 var resp = zInterface.forceKillMyZygote();
@@ -234,7 +234,7 @@ test("Zygote reuse zygote", async (done) => {
               expect(err).toBeNull();
               zMan.call("simple", "add", [10,2], options, (err, output) => {
                   expect(err).toBeNull();
-                  expect(output.result["val"]).toBe(12);
+                  expect(output.result).toBe(12);
                   zMan.killWorker((err) => {
                         expect(err).toBeNull();
                         // REUSE of zygote
@@ -242,7 +242,7 @@ test("Zygote reuse zygote", async (done) => {
                               expect(err).toBeNull();
                               zMan.call("strings", "substring", ["laughter",2,5], options, (err, output) => {
                                   expect(err).toBeNull();
-                                  expect(output.result["val"]).toBe("ugh");
+                                  expect(output.result).toBe("ugh");
                                   zMan.killWorker((err) => {
                                         expect(err).toBeNull();
                                         var resp = zMan.killMyZygote((err)=>{

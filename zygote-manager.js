@@ -204,24 +204,27 @@ class ZygoteManager {
             paths: options.paths,
         };
         const callDataString = JSON.stringify(callData);
-        //this.incallCallBack = callback;
+
         if (this.debugMode) {
             console.log("Calling fucntion: " + callDataString);
         }
+
         this.outputStdout = '';
         this.outputStderr = '';
         this.outputBoth = '';
-        this.outputData = '';
 
         this.lastCallData = callData;
         this.state = IN_CALL;
         this.callPort.send(callData, options.timeout, (err, message) => {
-            var output = new Output(this.outputStdout, this.outputStderr, message);
             if (err != null) {
                 this.state = ERROR;
-                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""), output);
+                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""));
             } else {
                 if (message['present']) {
+                  var output = new Output(
+                      this.outputStdout, this.outputStderr,
+                      this.outputBoth, message.val
+                  );
                   this.state = READY;
                   callback(null, output);
                 } else {
@@ -232,7 +235,7 @@ class ZygoteManager {
                   } else if (message['error'] == "File not present in the current directory") {
                       callback(new FileMissingError(fileName), output);
                   } else {
-                        callback(new InternalZyspawnError(message['message'] + " " + message['error']), output);
+                      callback(new InternalZyspawnError(message['message'] + " " + message['error']), output);
                   }
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
@@ -574,20 +577,6 @@ class ZygoteManager {
             console.error('[ZygoteManager error] in state (' + String(this.state) + ') error: ' + msg);
         }
     }
-
-    // stdinWrite(obj) {
-    //     assert(false);
-    //     if (![IN_CALL].includes(this.state)) {
-    //         return new BadStateError([IN_CALL], this.state);
-    //     }
-    //     if (!this._checkState([IN_CALL], 'stdinWrite')) {
-    //         return new Error('invalid ZygoteManager state for stdinWrite');
-    //     }
-    //     this.child.stdin.write(obj);
-    // }
-
-    // more private methods ...
-    // most complicated part here - the state machine, etc
 }
 
 /**
@@ -597,11 +586,13 @@ class Output {
     /**
      * @param {String} stdout Standard out
      * @param {String} stderr Standard error
+     * @param {String} consoleLog Combined standard out and standard error
      * @param {any} result Return value
      */
-    constructor(stdout, stderr, result) {
+    constructor(stdout, stderr, consoleLog, result) {
         this.stdout = stdout;
         this.stderr = stderr;
+        this.consoleLog = consoleLog;
         this.result = result;
     }
 
