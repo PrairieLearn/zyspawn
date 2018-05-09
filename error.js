@@ -6,7 +6,7 @@ const util = require('util')
 class ZyspawnError extends Error {
     constructor(message) {
         super(message);
-        this.name = 'ZySpawnError';
+        this.name = 'ZyspawnError';
     }
 }
 
@@ -52,7 +52,7 @@ class FileMissingError extends ZyspawnError {
  */
 class InvalidOperationError extends ZyspawnError {
     constructor(issue) {
-        super("invald operation: " + issue);
+        super("Invald operation: " + issue);
     }
 }
 
