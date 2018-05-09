@@ -78,7 +78,7 @@ class ZygotePool {
         var jobs = [];
         for (let i = 0; i < num; i++) {
             jobs.push(new Promise((resolve) => {
-                ZygoteManager.create((err, zygoteManager, debugMode) => {
+                ZygoteManager.create((err, zygoteManager) => {
                     if (!err) {
                         this._zygoteManagerList.push(zygoteManager);
                         this._idleZygoteManagerQueue.put(zygoteManager);
@@ -86,7 +86,7 @@ class ZygotePool {
                         // before creating finished
                     }
                     resolve(err);
-                });
+                }, "zygote.py", debugMode);
             }));
         }
 
