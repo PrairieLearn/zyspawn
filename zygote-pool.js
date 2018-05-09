@@ -63,7 +63,7 @@ class ZygotePool {
         this._totalZygoteNum = 0;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
-        this.addZygote(zygoteNum, callback);
+        this.addZygote(zygoteNum, callback, debugMode);
     }
 
     /**
