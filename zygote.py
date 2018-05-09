@@ -66,7 +66,7 @@ def waitForChild(signum, frame):
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    sys.stderr.write("[Zygote] child died")
+    # sys.stderr.write("[Zygote] child died")
 
 
 # Function name is self explanitory
@@ -96,7 +96,7 @@ def runWorker():
             json_inp = sys.stdin.readline().strip()
             if(json_inp is None or json_inp == ""):
                 continue
-            sys.stderr.write("::" + json_inp + "::\n")
+            # sys.stderr.write("::" + json_inp + "::\n")
 
             # Executing instructions after detected within pipe.
 
@@ -296,7 +296,7 @@ try:
             json_inp = inZygote.readline().strip()
             if (json_inp is None or json_inp == ""):
                 continue
-            sys.stderr.write(json_inp + ";")
+            # sys.stderr.write(json_inp + ";")
             # unpack the input line as JSON
             input = json.loads(json_inp)
             try:
@@ -306,7 +306,7 @@ try:
                 output["success"] = False
                 output["message"] = str(e)
             json_output = json.dumps(output)
-            sys.stderr.write("[" + json_output + "]")
+            # sys.stderr.write("[" + json_output + "]")
             outZygote.write(json_output + '\n')
             outZygote.flush()
 except Exception as e:
@@ -317,4 +317,4 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
+    # sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
