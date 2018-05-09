@@ -231,11 +231,11 @@ class ZygoteManager {
                   // TODO we can read from the message to see internal state/specificly what went wrong
                   this.state = READY;
                   if (message['error'] == "Function not present") {
-                      callback(new FunctionMissingError(functionName, fileName), output); // TODO implement stderr and stdout
+                      callback(new FunctionMissingError(functionName, fileName)); // TODO implement stderr and stdout
                   } else if (message['error'] == "File not present in the current directory") {
-                      callback(new FileMissingError(fileName), output);
+                      callback(new FileMissingError(fileName));
                   } else {
-                      callback(new InternalZyspawnError(message['message'] + " " + message['error']), output);
+                      callback(new InternalZyspawnError(message['message'] + " " + message['error']));
                   }
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
