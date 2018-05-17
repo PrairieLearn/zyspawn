@@ -1,7 +1,13 @@
 const util = require('util');
+const path = require('path');
 const { ZygotePool } = require('../zygote-pool');
 const { ZygoteInterface } = require('../zygote-pool');
 const {timeout} = require('./test-util');
+
+const options = {
+    cwd: path.join(__dirname, 'python-scripts')
+}
+
 var zyPool = null;
 
 const getRandomInt = function(max) {
@@ -17,9 +23,9 @@ const roundCheck = function (zyInt, number, handleDone) {
     if (number <= 0) {
         zyInt.done(handleDone);
     } else {
-        zyInt.call("test/python-scripts/simple", "add", [1,2], (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
-            expect(output.result["val"]).toBe(3);
+            expect(output.result).toBe(3);
             roundCheck(zyInt, number-1, handleDone);
         });
     }

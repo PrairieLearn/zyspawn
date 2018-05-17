@@ -165,7 +165,8 @@ class ZygoteManager {
      * Call a function in a python script.
      * @param {String} fileName The file where the function resides
      * @param {String} functionName The function to run
-     * @param {object} arg JSON object as arguments for the function
+     * @param {Array} arg Arguments for the function as an array
+     * @param {Object} options Include optional cwd (as absolute path), paths and timeout.
      * @param {function(Error, Output)} callback Called when the result is computed
      *                                           or any error happens
      *
@@ -174,7 +175,7 @@ class ZygoteManager {
      * and this ZygoteManager should no longer be used. Users need to create
      * a new ZygoteManager and restart their work.
      */
-    call(fileName, functionName, args, callback) {
+    call(fileName, functionName, args, options, callback) {
         if (this.debugMode) {
           console.log(util.format("[ZygoteManager] Running %s:%s", fileName, functionName));
         }
@@ -188,68 +189,58 @@ class ZygoteManager {
             callback(new Error('Invalid ZygoteManager state for call()'));
             return;
         }
-        // TODO add a check for relative vs absolute file paths: I think this already in?
-        var filepath = path.join(__dirname, fileName);
+
+        _.defaults(options, {
+            cwd: __dirname,
+            paths: [],
+            timeout: 3000,
+        });
 
         const callData = {
-            file: path.basename(filepath),
+            file: fileName,
             fcn: functionName,
             args: args,
-            cwd: path.dirname(filepath),
-            paths: [],
+            cwd: options.cwd,
+            paths: options.paths,
         };
         const callDataString = JSON.stringify(callData);
-        //this.incallCallBack = callback;
+
+        if (this.debugMode) {
+            console.log("Calling fucntion: " + callDataString);
+        }
 
         this.outputStdout = '';
         this.outputStderr = '';
         this.outputBoth = '';
-        this.outputData = '';
 
         this.lastCallData = callData;
         this.state = IN_CALL;
-        this.callPort.send(callData, 3000, (err, message) => {
-            var output = new Output(this.outputStdout, this.outputStderr, message);
+        this.callPort.send(callData, options.timeout, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
-                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""), output);
+                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""));
             } else {
                 if (message['present']) {
+                  var output = new Output(
+                      this.outputStdout, this.outputStderr,
+                      this.outputBoth, message.val
+                  );
                   this.state = READY;
                   callback(null, output);
                 } else {
                   // TODO we can read from the message to see internal state/specificly what went wrong
                   this.state = READY;
                   if (message['error'] == "Function not present") {
-                      callback(new FunctionMissingError(functionName, fileName), output); // TODO implement stderr and stdout
+                      callback(new FunctionMissingError(functionName, fileName)); // TODO implement stderr and stdout
                   } else if (message['error'] == "File not present in the current directory") {
-                      callback(new FileMissingError(fileName), output);
+                      callback(new FileMissingError(fileName));
                   } else {
-                        callback(new InternalZyspawnError(message['message'] + " " + message['error']), output);
+                      callback(new InternalZyspawnError(message['message'] + " " + message['error']));
                   }
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
             }
-            this.pipe = null;
         });
-        /*
-        this.timeoutID = setTimeout(() => {
-            if (this.debugMode) {
-              console.log(util.format("[ZygoteManager] Timeout on %s.%s", fileName, functionName));
-            }
-            this.state = ERROR; // TODO Make this better. I can see this causing issues
-            this.timeoutID = null;
-            this.incallCallBack(new Error('Timed out on calling: "' + functionName + '" in "' + fileName + '"'));
-            this.incallCallBack = null;
-        }, 3000);
-
-        const err = this.stdinWrite(callDataString + '\n');
-        /*
-        if (err != null) {
-            this.incallCallBack(err, null);
-            this._clearTimeout();
-            this.incallCallBack = null;
-        }*/
     }
 
     /**
@@ -586,20 +577,6 @@ class ZygoteManager {
             console.error('[ZygoteManager error] in state (' + String(this.state) + ') error: ' + msg);
         }
     }
-
-    // stdinWrite(obj) {
-    //     assert(false);
-    //     if (![IN_CALL].includes(this.state)) {
-    //         return new BadStateError([IN_CALL], this.state);
-    //     }
-    //     if (!this._checkState([IN_CALL], 'stdinWrite')) {
-    //         return new Error('invalid ZygoteManager state for stdinWrite');
-    //     }
-    //     this.child.stdin.write(obj);
-    // }
-
-    // more private methods ...
-    // most complicated part here - the state machine, etc
 }
 
 /**
@@ -609,11 +586,13 @@ class Output {
     /**
      * @param {String} stdout Standard out
      * @param {String} stderr Standard error
+     * @param {String} consoleLog Combined standard out and standard error
      * @param {any} result Return value
      */
-    constructor(stdout, stderr, result) {
+    constructor(stdout, stderr, consoleLog, result) {
         this.stdout = stdout;
         this.stderr = stderr;
+        this.consoleLog = consoleLog;
         this.result = result;
     }
 

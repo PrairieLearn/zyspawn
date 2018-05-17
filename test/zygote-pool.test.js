@@ -1,7 +1,12 @@
 const util = require('util');
+const path = require('path');
 const { ZygotePool, ZygoteInterface } = require('../zygote-pool');
 
 const { timeout }  = require('./test-util');
+
+const options = {
+    cwd: path.join(__dirname, 'python-scripts')
+}
 
 test("Create and shutdown test", async () => {
     var zygotePool;
@@ -43,10 +48,10 @@ test("Simple call test", async () => {
     var zygotePool = new ZygotePool(5);
     var zygoteInterface = zygotePool.request();
 
-    zygoteInterface.call("test/python-scripts/simple", "add", [1,2],
+    zygoteInterface.call("simple", "add", [1,2], options,
         (err, output) => {
             expect(err).toBeFalsy();
-            expect(output.result.val).toBe(3);
+            expect(output.result).toBe(3);
             zygoteInterface.done();
         }
     );
@@ -66,7 +71,7 @@ test("Call non-existing function test", async () => {
     var zygotePool = new ZygotePool(1);
     var zygoteInterface = zygotePool.request();
 
-    zygoteInterface.call("test/python-scripts/simple", "nonexsist", null,
+    zygoteInterface.call("simple", "nonexsist", null, options,
         (err, output) => {
             expect(err).toBeTruthy();
             zygoteInterface.done();
@@ -83,22 +88,23 @@ test("Call non-existing function test", async () => {
     expect(zygotePool.isShutdown()).toBe(true);
 });
 
-// TODO In this case, ZygoteManager.killWorker() doesn't call the callback
-// test("Call non-existing file test", async () => {
-//     var zygotePool = new ZygotePool(5);
-//     var zygoteInterface = zygotePool.request();
+test("Call non-existing file test", async () => {
+    var zygotePool = new ZygotePool(5);
+    var zygoteInterface = zygotePool.request();
 
-//     zygoteInterface.call("nowhere", "nonesense", null, (err, output) => {
-//         expect(err).toBeTruthy();
-//         zygoteInterface.done();
-//     });
+    zygoteInterface.call("nowhere", "nonesense", null, options,
+        (err, output) => {
+            expect(err).toBeTruthy();
+            zygoteInterface.done();
+        }
+    );
 
-//     await new Promise((resolve) => {
-//         zygotePool.shutdown((err) => {
-//             expect(err).toBeFalsy();
-//             resolve();
-//         });
-//     });
+    await new Promise((resolve) => {
+        zygotePool.shutdown((err) => {
+            expect(err).toBeFalsy();
+            resolve();
+        });
+    });
 
-//     expect(zygotePool.isShutdown()).toBe(true);
-// });
+    expect(zygotePool.isShutdown()).toBe(true);
+});

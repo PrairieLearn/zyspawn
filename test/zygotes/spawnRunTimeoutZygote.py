@@ -21,9 +21,9 @@ def parseInput(command_input):
 inZy = 4
 outZy = 5
 inWork = 0
-outFile = open("out.t", 'w', encoding='utf-8')
-outFile.write("OPENED in spawnRunZygote\n")
-outFile.flush()
+# outFile = open("out.t", 'w', encoding='utf-8')
+# outFile.write("OPENED in spawnRunZygote\n")
+# outFile.flush()
 try:
     with open(inZy, 'r', encoding='utf-8') as inZygote, open(outZy, 'w', encoding='utf-8') as outZygote:
         # infinite loop for Zygote to recieve commands
@@ -37,28 +37,28 @@ try:
             if (json_inp is None or json_inp == ""):
                 continue
 
-            outFile.write(json_inp + '\n')
-            outFile.flush()
+            # outFile.write(json_inp + '\n')
+            # outFile.flush()
             # unpack the input line as JSON
             inputVal = json.loads(json_inp)
             output = parseInput(inputVal)
             if (output is not None):
                 json_output = json.dumps(output)
-                outFile.write(">" + json_output + '\n')
-                outFile.flush()
+                # outFile.write(">" + json_output + '\n')
+                # outFile.flush()
                 outZygote.write(json_output + '\n')
                 outZygote.flush()
             # Now for worker
             count+=1
             if count == 2:
-                outFile.write('READING NOW: ')
+                # outFile.write('READING NOW: ')
                 json_inp = sys.stdin.readline().strip()
 
                 if (json_inp is None or json_inp == ""):
                     continue
 
-                outFile.write('spawnRunZygote: ' + json_inp + '\n')
-                outFile.flush()
+                # outFile.write('spawnRunZygote: ' + json_inp + '\n')
+                # outFile.flush()
 except Exception as e:
     jsonDict = {}
     jsonDict["type"] = 'exit'
@@ -68,7 +68,7 @@ except Exception as e:
     sys.stderr.write(str(e))
     exc_type, exc_obj, exc_tb = sys.exc_info()
     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-    outFile.write("<<Error>>" + str(exc_type) +  " " + str(fname) +  " " + str(exc_tb.tb_lineno) +  " " + str(e))
-    outFile.flush()
+    # outFile.write("<<Error>>" + str(exc_type) +  " " + str(fname) +  " " + str(exc_tb.tb_lineno) +  " " + str(e))
+    # outFile.flush()
     #exitInfoPipe.write(jsonStr + '\n')
     #exitInfoPipe.flush()

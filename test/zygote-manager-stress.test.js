@@ -1,6 +1,11 @@
 const util = require('util');
+const path = require('path');
 const ZygoteManager = require('../zygote-manager');
 const {timeout} = require('./test-util');
+
+const options = {
+    cwd: path.join(__dirname, 'python-scripts')
+}
 
 var zInterface = null;
 var zErr = null;
@@ -33,25 +38,25 @@ const roundCheck = function(zMan, done, rounds) {
           case 0:
             var a = getRandomInt(100);
             var b = getRandomInt(100);
-            zMan.call("test/python-scripts/simple", "add", [a,b], (err, output) => {
+            zMan.call("simple", "add", [a,b], options, (err, output) => {
                 expect(err).toBeNull();
-                expect(output.result["val"]).toBe(a+b);
+                expect(output.result).toBe(a+b);
                 roundCheck(zMan, done, rounds-1);
             });
             break;
           case 1:
-            zMan.call("test/python-scripts/strings", "count", ["abababab","ab"], (err, output) => {
+            zMan.call("strings", "count", ["abababab","ab"], options, (err, output) => {
                 expect(err).toBeNull();
-                expect(output.result["val"]).toBe(4);
+                expect(output.result).toBe(4);
                 roundCheck(zMan, done, rounds-1);
             });
             break;
           case 2:
             var a = getRandomInt(2);
             var b = getRandomInt(3)+3;
-            zMan.call("test/python-scripts/strings", "substring", ["abababab", a, b], (err, output) => {
+            zMan.call("strings", "substring", ["abababab", a, b], options, (err, output) => {
                 expect(err).toBeNull();
-                expect(output.result["val"]).toBe("abababab".substring(a,b));
+                expect(output.result).toBe("abababab".substring(a,b));
                 roundCheck(zMan, done, rounds-1);
             });
             break;
