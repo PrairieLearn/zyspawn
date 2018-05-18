@@ -35,6 +35,29 @@ test("Unknown method test for ZyInterface", async (done)=>{
     });
 });
 
+
+test("Nonexsistent File call", async (done)=>{
+    zyPool = new ZygotePool(1, (err)=>{
+        var zyInt = zyPool.request();
+        zyInt.call("unknown", "add", [1,2], options, (err, output) => {
+            expect(String(err)).toBe("ZyspawnError: Missing file unknown");
+            zyInt.done(done);
+        });
+    });
+});
+
+test("Timeout on method that does not halt", async (done)=>{
+    jest.setTimeout(9000);
+    zyPool = new ZygotePool(1, (err)=>{
+        var zyInt = zyPool.request();
+        zyInt.call("simple", "timeout", null, options, (err, output) => {
+            expect(String(err)).toBe("ZyspawnError: Timeout on: function \"timeout\" in file \"simple\"");
+            console.log("Done on timeout: " + output);
+            zyInt.done(done);
+        });
+    }, (err) => { if(err) throw err; }, true);
+});
+
 test("2 Calls test for ZyInterface", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
