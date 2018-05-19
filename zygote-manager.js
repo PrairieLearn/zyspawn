@@ -424,6 +424,9 @@ class ZygoteManager {
         // TODO Add check for other states for sperious deaths
         this.state = DEPARTED;
         this.departingCallback(err);
+        if (this.debugMode) {
+            console.log("Zygote Exited with code: " + String(code));
+        }
         /*
         if (this.departingCallback != null) {
             this.departingCallback(err);

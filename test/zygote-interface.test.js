@@ -52,10 +52,9 @@ test("Timeout on method that does not halt", async (done)=>{
         var zyInt = zyPool.request();
         zyInt.call("simple", "timeout", null, options, (err, output) => {
             expect(String(err)).toBe("ZyspawnError: Timeout on: function \"timeout\" in file \"simple\"");
-            console.log("Done on timeout: " + output);
             zyInt.done(done);
         });
-    }, (err) => { if(err) throw err; }, true);
+    });
 });
 
 test("2 Calls test for ZyInterface", async (done)=>{
