@@ -20,7 +20,7 @@ matplotlib.use('PDF')
 
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
-
+isWorker = False
 
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
@@ -32,6 +32,16 @@ def getChildPid():
 def setChildPid(pid):
     global childPid
     childPid = pid
+
+#   Returns if this is a worker
+def getIsWorker():
+    global isWorker
+    return isWorker
+
+#   Sets that this is a worker
+def setIsWorker():
+    global isWorker # Once your a worker, you can never go back
+    isWorker = True
 
 #   This function waits for it's child to complete it's assigned task.
 #   Returns zero upon successful completion by the child
@@ -55,7 +65,7 @@ def waitForChild(signum, frame):
         jsonDict["code"] = signum
         jsonDict["signal"] = "SIGCHLD"
         if getChildPid() != -1:
-            setChildPid(-1);
+            setChildPid(-1)
 
     # Message when the child is interupted!
     else:
@@ -64,9 +74,10 @@ def waitForChild(signum, frame):
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
+    sys.stderr.write("Child has died")
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    sys.stderr.write("[Zygote] child died");
+    # sys.stderr.write("[Zygote] child died")
 
 
 # Function name is self explanitory
@@ -83,7 +94,8 @@ def int_handler(signum, frame):
 
 def runWorker():
     # The output file descriptor.
-    with open(3, 'w', encoding='utf-8') as outf, open(5, 'w', encoding='utf-8') as outZygote:
+    setIsWorker()
+    with open(3, 'w', encoding='utf-8') as outf:
 
         # Infinite loop
         # Wait for the input commands through pipie 0 (aka stdin)
@@ -96,7 +108,7 @@ def runWorker():
             json_inp = sys.stdin.readline().strip()
             if(json_inp is None or json_inp == ""):
                 continue
-            sys.stderr.write("::" + json_inp + "::\n");
+            # sys.stderr.write("::" + json_inp + "::\n")
 
             # Executing instructions after detected within pipe.
 
@@ -108,6 +120,9 @@ def runWorker():
             cwd = inp['cwd']
             paths = inp['paths']
 
+            # If no args are given, make the argument list empty
+            if args is None:
+                args = []
 
             # reset and then set up the path
             sys.path = copy.copy(saved_path)
@@ -124,24 +139,23 @@ def runWorker():
                 output["present"] = False
                 ouptut["message"] = str(e)
                 output["error"] = "File path invalid"
-                outZygote.write(json_output)
-                outZygote.write("\n")
-                outZygote.flush()
+                outf.write(json_output)
+                outf.write("\n")
+                outf.flush()
                 continue
-            #sys.stderr.write("Dir: " + os.__dirname + ">>");
-            # load the "file" as a module
+
             try:
                 mod = importlib.import_module(file)
             except Exception as e:
                 # File nonexstant
                 output = {}
                 output["present"] = False
-                ouput["message"] = str(e)
+                output["message"] = str(e)
                 output["error"] = "File not present in the current directory"
                 json_output = json.dumps(output)
-                outZygote.write(json_output)
-                outZygote.write("\n")
-                outZygote.flush()
+                outf.write(json_output)
+                outf.write("\n")
+                outf.flush()
                 continue
 
 
@@ -182,12 +196,8 @@ def runWorker():
                 # the function wasn't present, so report this
                 output = {}
                 output["present"] = False
-                output["error"] = "File not present in the current directory"
-                json_output = json.dumps(output)
-                outZygote.write(json_output)
-                outZygote.write("\n")
-                outZygote.flush()
-                json_outp = json.dumps({"present": False})
+                output["error"] = "Function not present"
+                json_outp = json.dumps(output)
 
             # make sure all output streams are flushed
             sys.stderr.flush()
@@ -195,7 +205,7 @@ def runWorker():
 
             # write the return value (JSON on a single line)
             outf.write(json_outp)
-            outf.write("\n");
+            outf.write("\n")
             outf.flush()
 
 saved_path = copy.copy(sys.path)
@@ -236,7 +246,9 @@ Messages that could be sent from zygote
 # Called in try
 def parseInput(command_input):
     message = {}
-
+    if getIsWorker():
+        sys.stderr.write("Worker should not be parsing Input: " + str(getChildPid()) + " : " + str(os.getpid()))
+        sys.exit(1);
     if ("action" not in command_input):
         message["success"] = False
         message["message"] = "No action specified in input"
@@ -253,10 +265,14 @@ def parseInput(command_input):
         if (getChildPid() == 0):
             # We are child
             setChildPid(-1)
-            runWorker()
+            try:
+                runWorker()
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
             sys.exit(1) # exit with error code if child exits runWorker
         else:
-            pass
             # Set signal handler for when child dies
             signal.signal(signal.SIGCHLD, waitForChild)
         message["success"] = True
@@ -272,7 +288,7 @@ def parseInput(command_input):
         os.waitpid(pid, 0)
     elif (action == "kill self"):
         # TODO ADD ADDITIONAL LOGIC
-        sys.exit(0);
+        sys.exit(0)
     elif (action == "status"):
         message["success"] = True
         status =  "not created" if (getChildPid()==-1) else "created"
@@ -300,19 +316,22 @@ try:
             json_inp = inZygote.readline().strip()
             if (json_inp is None or json_inp == ""):
                 continue
-            sys.stderr.write(json_inp + ";");
             # unpack the input line as JSON
             input = json.loads(json_inp)
             try:
                 output = parseInput(input)
             except Exception as e:
+                sys.stderr.write("Error on parse input: " + str(e))
+                sys.stderr.flush()
                 output = {}
                 output["success"] = False
                 output["message"] = str(e)
             json_output = json.dumps(output)
-            sys.stderr.write("[" + json_output + "]");
+            # sys.stderr.write("[" + json_output + "]")
             outZygote.write(json_output + '\n')
             outZygote.flush()
+        sys.stderr.write("Wierd issue found: " + str(getChildPid()) + ", " + str(getIsWorker()))
+        sys.stderr.flush()
 except Exception as e:
     jsonDict = {}
     jsonDict["type"] = 'exit'
@@ -321,4 +340,4 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->");
+    # sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
