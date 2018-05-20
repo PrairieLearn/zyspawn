@@ -1,3 +1,5 @@
+import time
+
 def add(x, y):
     return x + y
 
@@ -7,3 +9,7 @@ def bad():
 def timeout():
     while True:
         pass
+
+def sleep(seconds):
+    time.sleep(seconds)
+    return seconds

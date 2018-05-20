@@ -57,6 +57,17 @@ test("Timeout on method that does not halt", async (done)=>{
     });
 });
 
+test("Calling on slow method", async (done)=>{
+    jest.setTimeout(9000);
+    zyPool = new ZygotePool(1, (err)=>{
+        var zyInt = zyPool.request();
+        zyInt.call("simple", "sleep", [0], options, (err, output) => {
+            expect(err).toBeNull();
+            zyInt.done(done);
+        });
+    });
+});
+
 test("2 Calls test for ZyInterface", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
