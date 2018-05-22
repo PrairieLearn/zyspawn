@@ -74,9 +74,9 @@ def waitForChild(signum, frame):
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
-    sys.stderr.write("Child has died")
-    exitInfoPipe.write(jsonStr + '\n')
-    exitInfoPipe.flush()
+    sys.stderr.write("Child has died\n")
+    sys.stderr.write(jsonStr + '\n')
+    sys.stderr.flush()
     # sys.stderr.write("[Zygote] child died")
 
 
@@ -338,6 +338,6 @@ except Exception as e:
     jsonDict["code"] = 1
     jsonDict["signal"] = str(e)
     jsonStr = json.dumps(jsonDict)
-    exitInfoPipe.write(jsonStr + '\n')
-    exitInfoPipe.flush()
+    sys.stderr.write(jsonStr + '\n')
+    sys.stderr.Pipe.flush()
     # sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
