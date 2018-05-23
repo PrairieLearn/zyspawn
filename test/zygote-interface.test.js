@@ -58,11 +58,12 @@ test("Timeout on method that does not halt", async (done)=>{
 });
 
 test("2 Calls test for ZyInterface", async (done)=>{
+    jest.setTimeout(1000000000000000000000000);
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("simple", "add", [1,2], options, (err, output) => {
+        zyInt.call("complex", "fib", 10, options, (err, output) => {
             expect(err).toBeNull();
-            expect(output.result).toBe(3);
+            expect(output.result).toBe(55);
             zyInt.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result).toBe(4);
