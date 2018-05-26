@@ -135,6 +135,7 @@ class ZygoteManager {
         this.controlPort.send({action: 'status'}, 3000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
+
                 callback(new TimeoutError("Creating Zygote"), this);
             } else {
                 if (message['success']) {
@@ -206,7 +207,7 @@ class ZygoteManager {
         const callDataString = JSON.stringify(callData);
 
         if (this.debugMode) {
-            console.log("Calling fucntion: " + callDataString);
+            console.log("Calling function: " + callDataString + " with timeout: " + options.timeout);
         }
 
         this.outputStdout = '';
@@ -218,7 +219,11 @@ class ZygoteManager {
         this.callPort.send(callData, options.timeout, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
-                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""));
+                var output = new Output(
+                    this.outputStdout, this.outputStderr,
+                    this.outputBoth, null
+                );
+                callback(new TimeoutError("function \"" + functionName + "\" in file \"" + fileName + "\""), output);
             } else {
                 if (message['present']) {
                   var output = new Output(
@@ -419,6 +424,9 @@ class ZygoteManager {
         // TODO Add check for other states for sperious deaths
         this.state = DEPARTED;
         this.departingCallback(err);
+        if (this.debugMode) {
+            console.log("Zygote Exited with code: " + String(code));
+        }
         /*
         if (this.departingCallback != null) {
             this.departingCallback(err);
@@ -526,9 +534,7 @@ class ZygoteManager {
             callback(new Error('invalid ZygoteManager state for killWorker()'), null);
             return;
         }
-        if(!this.workerSpawned){
-          console.log("KSJhdiuaush dhsdish dahdiua hd");
-        }
+
         this.state = EXITING;
 
         this.controlPort.send({action: 'kill worker'}, 1000, (err, message) => {

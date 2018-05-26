@@ -308,23 +308,23 @@ class ZygoteInterface {
      */
     call(moduleName, functionName, arg, options, callback) {
         switch (this.state()) {
-        case ZygoteInterface.UNINITIALIZED:
-            this._zygotePool._allocateZygoteManager(this, (err) => {
-                if (err) { // Failure in ZygoteManager.startWorker()
-                    callback(err);
-                } else {
-                    this._zygoteManager.call(moduleName, functionName, arg, options, callback);
-                }
-            });
-            break;
-        case ZygoteInterface.INITIALIZED:
-            this._zygoteManager.call(moduleName, functionName, arg, options, callback);
-            break;
-        case ZygoteInterface.FINALIZED:
-            callback(new InvalidOperationError("Calling call() after done() on ZygoteInterface"));
-            break;
-        default:
-            assert(false, "Bad state of ZygoteInterface: " + this.state());
+            case ZygoteInterface.UNINITIALIZED:
+                this._zygotePool._allocateZygoteManager(this, (err) => {
+                    if (err) { // Failure in ZygoteManager.startWorker()
+                        callback(err);
+                    } else {
+                        this._zygoteManager.call(moduleName, functionName, arg, options, callback);
+                    }
+                });
+                break;
+            case ZygoteInterface.INITIALIZED:
+                this._zygoteManager.call(moduleName, functionName, arg, options, callback);
+                break;
+            case ZygoteInterface.FINALIZED:
+                callback(new InvalidOperationError("Calling call() after done() on ZygoteInterface"));
+                break;
+            default:
+                assert(false, "Bad state of ZygoteInterface: " + this.state());
         }
     }
 
