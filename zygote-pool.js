@@ -68,7 +68,6 @@ class ZygotePool {
     constructor(zygoteNum, callback = DEFAULT_CALLBACK, debugMode = false) {
         this._isShutdown = false;
         this._totalZygoteNum = 0;
-        this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
         this.addZygote(zygoteNum, callback, debugMode);
     }
@@ -87,7 +86,6 @@ class ZygotePool {
             jobs.push(new Promise((resolve) => {
                 ZygoteManager.create((err, zygoteManager) => {
                     if (!err) {
-                        this._zygoteManagerList.push(zygoteManager);
                         this._idleZygoteManagerQueue.put(zygoteManager);
                         // TODO need to consider the case of shutdown before
                         // before creating finished
