@@ -13,3 +13,6 @@ def timeout():
 def sleep(seconds):
     time.sleep(seconds)
     return seconds
+
+def getNum():
+    return 17

@@ -129,7 +129,6 @@ def runWorker():
             for path in reversed(paths):
                 sys.path.insert(0, path)
             sys.path.insert(0, cwd)
-
             # change to the desired working directory
             try:
                 os.chdir(cwd)
@@ -164,7 +163,7 @@ def runWorker():
                 # Call the desired function in the loaded module
                 method = getattr(mod, fcn)
                 val = method(*args)
-
+                
                 if fcn=="file":
                     # if val is None, replace it with empty string
                     if val is None:
@@ -179,17 +178,16 @@ def runWorker():
                     # if this next call does not work, it will throw an error, because
                     # the thing returned by file() does not have the correct format
                     val = base64.b64encode(val).decode()
-
                 # Any function that is not 'file' or 'render' will modify 'data' and
                 # should not be returning anything (because 'data' is mutable).
                 if (fcn != 'file') and (fcn != 'render'):
                     if val is None:
-                        json_outp = json.dumps({"present": True, "val": args[-1]})
+                        json_outp = json.dumps({"present": True, "val": None})
                     else:
-                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                        #json_outp_passed = json.dumps({"present": True, "val": lastArg}, sort_keys=True)
                         json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
-                        if json_outp_passed != json_outp:
-                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                        #if json_outp_passed != json_outp:
+                        #    sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
                 else:
                     json_outp = json.dumps({"present": True, "val": val})
             else:
