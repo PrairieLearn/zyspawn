@@ -422,15 +422,16 @@ class ZygoteManager {
         this._clearTimeout();
         // TODO clear current port's timeout??
         // TODO Add check for other states for sperious deaths
-        this.state = DEPARTED;
-        this.departingCallback(err);
+        if (this.departingCallback != null) {
+            this.state = DEPARTED;
+            this.departingCallback(err);
+        } else {
+            console.log("Zygote exited unexpectedly in state: " + String(this.state));
+            this.state = DEPARTED;
+        }
         if (this.debugMode) {
             console.log("Zygote Exited with code: " + String(code));
         }
-        /*
-        if (this.departingCallback != null) {
-            this.departingCallback(err);
-        }*/
         this.departingCallback = null;
     }
 

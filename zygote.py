@@ -21,7 +21,7 @@ matplotlib.use('PDF')
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 isWorker = False
-
+shouldKillWorker = False
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
 def getChildPid():
@@ -74,7 +74,8 @@ def waitForChild(signum, frame):
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
-    sys.stderr.write("Child has died")
+    if not shouldKillWorker:
+        sys.stderr.write("Child has died: " + shouldKillWorker)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
     # sys.stderr.write("[Zygote] child died")
@@ -163,7 +164,7 @@ def runWorker():
                 # Call the desired function in the loaded module
                 method = getattr(mod, fcn)
                 val = method(*args)
-                
+
                 if fcn=="file":
                     # if val is None, replace it with empty string
                     if val is None:
@@ -180,9 +181,17 @@ def runWorker():
                     val = base64.b64encode(val).decode()
                 # Any function that is not 'file' or 'render' will modify 'data' and
                 # should not be returning anything (because 'data' is mutable).
+                # TODO file and render shouldn't be static things, we should
+                #       make this something that the user controls. Perhaps,
+                #       we should make it so that when you start up zygote, you
+                #       must pass in a list of such function names?
                 if (fcn != 'file') and (fcn != 'render'):
+                    lastArg = None
+                    # Deal with case where function takes
+                    if (len(args) > 0):
+                        lastArg = args[-1]
                     if val is None:
-                        json_outp = json.dumps({"present": True, "val": None})
+                        json_outp = json.dumps({"present": True, "val": lastArg})
                     else:
                         #json_outp_passed = json.dumps({"present": True, "val": lastArg}, sort_keys=True)
                         json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
@@ -259,6 +268,8 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "zygote already contains worker"
             return message
+        global shouldKillWorker
+        shouldKillWorker = False
         setChildPid(os.fork())
         if (getChildPid() == 0):
             # We are child
@@ -279,6 +290,7 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
+        shouldKillWorker = True
         pid = getChildPid()
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
