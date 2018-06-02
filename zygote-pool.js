@@ -50,7 +50,7 @@ const {
     FileMissingError,
     FunctionMissingError,
     InvalidOperationError,
-    TimeoutError
+    TimeoutError,
 } = require('./error');
 
 const DEFAULT_CALLBACK = (err) => { if(err) throw err; };
@@ -65,11 +65,21 @@ class ZygotePool {
      * @param {function(Error)} callback Called after initialization,
      *      if not specified, errors will be throwed.
      */
-    constructor(zygoteNum, callback = DEFAULT_CALLBACK, debugMode = false) {
+    constructor(zygoteNum, opts={}) {
         this._isShutdown = false;
         this._totalZygoteNum = 0;
         this._idleZygoteManagerQueue = new BlockingQueue();
-        this.addZygote(zygoteNum, callback, debugMode);
+        this.options = _.defaults(opts,{
+             'callback' : DEFAULT_CALLBACK,
+             'zygoteFile' : 'zygote.py',
+             'debugZygoteMode' : false,
+             'notifyDispatches' : false,
+        });
+        this.callback = this.options['callback'];
+        this.debugZygoteMode = this.options['debugZygoteMode'];
+        this.notifyDispatches = this.options['notifyDispatches'];
+
+        this.addZygote(zygoteNum);
     }
 
     /**
@@ -78,7 +88,7 @@ class ZygotePool {
      * @param {function(Error)} callback Called after zygotes are created,
      *                                   or error happens
      */
-    addZygote(num, callback = DEFAULT_CALLBACK, debugMode = false) {
+    addZygote(num) {
         this._totalZygoteNum += num;
 
         var jobs = [];
@@ -91,13 +101,13 @@ class ZygotePool {
                         // before creating finished
                     }
                     resolve(err);
-                }, "zygote.py", debugMode);
+                }, this.options);
             }));
         }
 
         Promise.all(jobs).then((errs) => {
             _.pull(errs, null);
-            callback(errs.length == 0 ? null : errs);
+            this.callback(errs.length == 0 ? null : errs);
             // TODO
             // need to define error object
             // kill live zygotes when error happens?
@@ -203,13 +213,22 @@ class ZygotePool {
             return;
         }
 
+        if (this.options['notifyDispatches']) {
+            console.log('[Zyspawn] Attempting to hand off zygote');
+        }
         this._idleZygoteManagerQueue.get((err, zygoteManager) => {
             assert(!err); // BlockingQueue.clearWaiting() is never called
             zygoteManager.startWorker((err) => {
                 if (err) {
                     // TODO create a new Zygote?
+                    if (this.options['notifyDispatches']) {
+                        console.log('[Zyspawn] Failed to hand off zygote');
+                    }
                     callback(err); // do we need to pass the error outside
                 } else {
+                    if (this.options['notifyDispatches']) {
+                        console.log('[Zyspawn] Successfully handed off zygote');
+                    }
                     zygoteInterface._initialize(zygoteManager, (callback) => {
                         this._reclaimZygoteManager(zygoteInterface, callback);
                     });
@@ -229,12 +248,21 @@ class ZygotePool {
         // TODO check if the zygote is still healthy
         var zygoteManager = zygoteInterface._zygoteManager;
         // console.log("Cleaning up! Start killing worker...");
+        if (this.options['notifyDispatches']) {
+            console.log('[Zyspawn] Attempting to reclaim zygote');
+        }
         zygoteManager.killWorker((err) => {
             // console.log("Worker is killed!");
             if (err) {
                 // TODO create a new Zygote?
+                if (this.options['notifyDispatches']) {
+                    console.log('[Zyspawn] Failed to reclaim zygote');
+                }
                 callback(err);
             } else {
+                if (this.options['notifyDispatches']) {
+                    console.log('[Zyspawn] Successfully reclaimed zygote');
+                }
                 this._idleZygoteManagerQueue.put(zygoteManager);
                 callback(null);
             }
@@ -319,10 +347,10 @@ class ZygoteInterface {
                 this._zygoteManager.call(moduleName, functionName, arg, options, callback);
                 break;
             case ZygoteInterface.FINALIZED:
-                callback(new InvalidOperationError("Calling call() after done() on ZygoteInterface"));
+                callback(new InvalidOperationError('Calling call() after done() on ZygoteInterface'));
                 break;
             default:
-                assert(false, "Bad state of ZygoteInterface: " + this.state());
+                assert(false, 'Bad state of ZygoteInterface: ' + this.state());
         }
     }
 

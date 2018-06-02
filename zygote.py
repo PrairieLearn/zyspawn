@@ -4,7 +4,7 @@
 
 
 import signal
-import sys, os, json, importlib, copy, base64, io, matplotlib
+import sys, traceback, os, json, importlib, copy, base64, io, matplotlib
 matplotlib.use('PDF')
 
 #   The actual zygote off of which process will fork of off.
@@ -277,9 +277,21 @@ def parseInput(command_input):
             try:
                 runWorker()
             except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+
+                traceback_template = '''Traceback (most recent call last): File "%(filename)s", line %(lineno)s, in %(name)s %(type)s: %(message)s\n'''
+                traceback_details = {
+                         'filename': exc_traceback.tb_frame.f_code.co_filename,
+                         'lineno'  : exc_traceback.tb_lineno,
+                         'name'    : exc_traceback.tb_frame.f_code.co_name,
+                         'type'    : exc_type.__name__,
+                         'message' : str(e), # or see traceback._some_str()
+                        }
+                del(exc_type, exc_value, exc_traceback)
+                #sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+                sys.stderr.write("run worker failed: \n"
+                 + traceback.format_exc())
+                #  + "\n" + traceback_template % traceback_details)
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
