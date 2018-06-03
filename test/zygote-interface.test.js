@@ -89,12 +89,11 @@ test("Calling on no argument method null list", async (done)=>{
 });
 
 test("2 Calls test for ZyInterface", async (done)=>{
-    jest.setTimeout(1000000000000000000000000);
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
-        zyInt.call("complex", "fib", 10, options, (err, output) => {
+        zyInt.call("simple", "add", [1,2], options, (err, output) => {
             expect(err).toBeNull();
-            expect(output.result).toBe(55);
+            expect(output.result).toBe(3);
             zyInt.call("simple", "add", [-5,9], options, (err, output) => {
                 expect(err).toBeNull();
                 expect(output.result).toBe(4);
