@@ -4,7 +4,7 @@
 
 
 import signal
-import sys, os, json, importlib, copy, base64, io, matplotlib
+import sys, traceback, os, json, importlib, copy, base64, io, matplotlib
 matplotlib.use('PDF')
 
 #   The actual zygote off of which process will fork of off.
@@ -21,7 +21,7 @@ matplotlib.use('PDF')
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 isWorker = False
-
+shouldKillWorker = False
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
 def getChildPid():
@@ -74,9 +74,12 @@ def waitForChild(signum, frame):
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
-    sys.stderr.write("Child has died\n")
-    sys.stderr.write(jsonStr + '\n')
-    sys.stderr.flush()
+
+    if not shouldKillWorker:
+        sys.stderr.write("Child has died: " + shouldKillWorker)
+    exitInfoPipe.write(jsonStr + '\n')
+    exitInfoPipe.flush()
+
     # sys.stderr.write("[Zygote] child died")
 
 
@@ -129,7 +132,6 @@ def runWorker():
             for path in reversed(paths):
                 sys.path.insert(0, path)
             sys.path.insert(0, cwd)
-
             # change to the desired working directory
             try:
                 os.chdir(cwd)
@@ -179,17 +181,24 @@ def runWorker():
                     # if this next call does not work, it will throw an error, because
                     # the thing returned by file() does not have the correct format
                     val = base64.b64encode(val).decode()
-
                 # Any function that is not 'file' or 'render' will modify 'data' and
                 # should not be returning anything (because 'data' is mutable).
+                # TODO file and render shouldn't be static things, we should
+                #       make this something that the user controls. Perhaps,
+                #       we should make it so that when you start up zygote, you
+                #       must pass in a list of such function names?
                 if (fcn != 'file') and (fcn != 'render'):
+                    lastArg = None
+                    # Deal with case where function takes
+                    if (len(args) > 0):
+                        lastArg = args[-1]
                     if val is None:
-                        json_outp = json.dumps({"present": True, "val": args[-1]})
+                        json_outp = json.dumps({"present": True, "val": lastArg})
                     else:
-                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                        #json_outp_passed = json.dumps({"present": True, "val": lastArg}, sort_keys=True)
                         json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
-                        if json_outp_passed != json_outp:
-                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                        #if json_outp_passed != json_outp:
+                        #    sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
                 else:
                     json_outp = json.dumps({"present": True, "val": val})
             else:
@@ -261,6 +270,8 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "zygote already contains worker"
             return message
+        global shouldKillWorker
+        shouldKillWorker = False
         setChildPid(os.fork())
         if (getChildPid() == 0):
             # We are child
@@ -268,9 +279,21 @@ def parseInput(command_input):
             try:
                 runWorker()
             except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+
+                traceback_template = '''Traceback (most recent call last): File "%(filename)s", line %(lineno)s, in %(name)s %(type)s: %(message)s\n'''
+                traceback_details = {
+                         'filename': exc_traceback.tb_frame.f_code.co_filename,
+                         'lineno'  : exc_traceback.tb_lineno,
+                         'name'    : exc_traceback.tb_frame.f_code.co_name,
+                         'type'    : exc_type.__name__,
+                         'message' : str(e), # or see traceback._some_str()
+                        }
+                del(exc_type, exc_value, exc_traceback)
+                #sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+                sys.stderr.write("run worker failed: \n"
+                 + traceback.format_exc())
+                #  + "\n" + traceback_template % traceback_details)
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
@@ -281,6 +304,7 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
+        shouldKillWorker = True
         pid = getChildPid()
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)

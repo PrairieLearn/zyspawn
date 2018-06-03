@@ -1,6 +1,6 @@
 {
   "name": "zyspawn",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "",
   "main": "zygote-pool.js",
   "directories": {
@@ -10,7 +10,7 @@
     "lodash": "^4.17.5"
   },
   "devDependencies": {
-    "jest": "^22.4.3"
+    "jest": "^22.4.4"
   },
   "scripts": {
     "test": "jest"
