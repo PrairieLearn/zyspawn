@@ -65,21 +65,20 @@ class ZygotePool {
      * @param {function(Error)} callback Called after initialization,
      *      if not specified, errors will be throwed.
      */
-    constructor(zygoteNum, opts={}) {
+    constructor(zygoteNum, callback=DEFAULT_CALLBACK, opts={}) {
         this._isShutdown = false;
         this._totalZygoteNum = 0;
         this._idleZygoteManagerQueue = new BlockingQueue();
         this.options = _.defaults(opts,{
-             'callback' : DEFAULT_CALLBACK,
              'zygoteFile' : 'zygote.py',
              'debugZygoteMode' : false,
              'notifyDispatches' : false,
         });
-        this.callback = this.options['callback'];
+        this.callback = callback;
         this.debugZygoteMode = this.options['debugZygoteMode'];
         this.notifyDispatches = this.options['notifyDispatches'];
 
-        this.addZygote(zygoteNum);
+        this.addZygote(zygoteNum, this.callback);
     }
 
     /**
@@ -88,7 +87,7 @@ class ZygotePool {
      * @param {function(Error)} callback Called after zygotes are created,
      *                                   or error happens
      */
-    addZygote(num) {
+    addZygote(num, callback=DEFAULT_CALLBACK) {
         this._totalZygoteNum += num;
 
         var jobs = [];
@@ -107,7 +106,7 @@ class ZygotePool {
 
         Promise.all(jobs).then((errs) => {
             _.pull(errs, null);
-            this.callback(errs.length == 0 ? null : errs);
+            callback(errs.length == 0 ? null : errs);
             // TODO
             // need to define error object
             // kill live zygotes when error happens?

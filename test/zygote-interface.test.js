@@ -1,8 +1,6 @@
-const util = require('util');
 const path = require('path');
 const { ZygotePool } = require('../zygote-pool');
 const { ZygoteInterface } = require('../zygote-pool');
-const {timeout} = require('./test-util');
 
 const options = {
     cwd: path.join(__dirname, 'python-scripts')
