@@ -27,7 +27,7 @@ test("Spawn Work Zygote Test", async (done) => {
               zInterface = null;
               done();
           });
-    }, "test/zygotes/spawnWorkZygote.py");
+    }, {'zygoteFile':"test/zygotes/spawnWorkZygote.py"});
 });
 
 test("Spawn Fail Refuse Zygote Test", async (done) => {
@@ -37,7 +37,7 @@ test("Spawn Fail Refuse Zygote Test", async (done) => {
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
           done();
-    }, "test/zygotes/spawnFailRefuseZygote.py");
+    }, {'zygoteFile':"test/zygotes/spawnFailRefuseZygote.py"});
 });
 
 test("Spawn Fail Message Test", async (done) => {
@@ -48,7 +48,7 @@ test("Spawn Fail Message Test", async (done) => {
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
           done();
-    }, "test/zygotes/spawnFailMessageZygote.py");
+    }, opts={'zygoteFile':"test/zygotes/spawnFailMessageZygote.py"});
 });
 
 test("Spawn Worker Timeout Test", async (done) => {
@@ -63,7 +63,7 @@ test("Spawn Worker Timeout Test", async (done) => {
           });
           //zInterface = null;
           //done();
-    }, "test/zygotes/spawnWorkZygote.py");
+    }, {'zygoteFile':"test/zygotes/spawnWorkZygote.py"});
 
 });
 
@@ -82,7 +82,7 @@ test("Spawn Worker No Timeout Test", async (done) => {
                   });
               });
           });
-    }, "test/zygotes/spawnWorkerZygote.py");
+    }, {'zygoteFile':"test/zygotes/spawnWorkerZygote.py"});
 
 });
 
@@ -104,7 +104,7 @@ test("Running Simple Method that times out", async (done) => {
                   });
               });
           });
-    }, "test/zygotes/spawnRunTimeoutZygote.py");
+    },{'zygoteFile':"test/zygotes/spawnRunTimeoutZygote.py"});
 });
 
 test("Zygote call on add python", async (done) => {

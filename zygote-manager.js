@@ -55,13 +55,13 @@ class ZygoteManager {
 
         opts = _.defaults(
             opts,{
-              'zygote':'zygote.py',
+              'zygoteFile':'zygote.py',
             }
         );
         // Options for constructor
         const cmd = 'python3';
         // TODO python-caller-trampoline is an awful name, rename it to zygote.py
-        const pythonTrampoline = path.join(__dirname, opts['zygote']);
+        const pythonTrampoline = path.join(__dirname, opts['zygoteFile']);
         const args = ['-B', pythonTrampoline];
         const env = _.clone(process.env);
         // PYTHONIOENCODING might not be needed once we switch to Python 3.7
