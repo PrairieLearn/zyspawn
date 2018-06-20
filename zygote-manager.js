@@ -197,7 +197,7 @@ class ZygoteManager {
         _.defaults(options, {
             cwd: __dirname,
             paths: [],
-            timeout: 3000,
+            timeout: 6000,
         });
 
         const callData = {
