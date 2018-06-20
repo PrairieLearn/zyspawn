@@ -85,9 +85,14 @@ class ZygoteManager {
         this.opts = _.defaults(opts,{
             'zygoteFile':'zygote.py',
             'debugMode':false,
-            'printStdin':false,
+            'printStdout':false,
             'printStderr':false,
+            'printPipe6':false,
             'printCalls':false,
+            'printSpawnWorker':false,
+            'printKillWorker':false,
+            'printSpawnZygote':false,
+            'printKillZygote':false,
         });
         options = options || {};
         options['stdio'] = ['pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe', 'pipe'];
@@ -103,10 +108,10 @@ class ZygoteManager {
         this.child.stdio[6].setEncoding('utf8');
         // Add exit listener for child
         this.child.on('exit', this._zygoteExitListener.bind(this));
-
-
-        this.child.stdio[6].on('data', (data)=>{/*console.log(data);*/});
-
+        if (this.opts['printPipe6']) {
+            this.child.stdio[6].on('data', (data)=>{console.log('[ZySpawn]: ' + String(data));});
+        }
+        
         this.state = CREATING;
 
         this.child.stderr.on('data', this._handleStderrData.bind(this));
@@ -124,11 +129,17 @@ class ZygoteManager {
         this.child.stdio[5].on('close', ()=>{
             this.child.stdio[5].removeAllListeners();
         });
+        this.child.stdio[6].on('close', ()=>{
+            this.child.stdio[6].removeAllListeners();
+        });
 
         this.controlPort = new Port(this.child.stdio[4], this.child.stdio[5]);
         this.callPort = new Port(this.child.stdin, this.child.stdio[3]);
 
-        this.controlPort.send({action: 'status'}, 3000, (err, message) => {
+        this.controlPort.send({action: 'status'}, 20000, (err, message) => {
+            if (this.opts['printSpawnZygote']) {
+                console.log(util.format('[ZygoteManager] Spawing zygote returned error or null: %s', String(err)))
+            }
             if (err != null) {
                 this.state = ERROR;
 
@@ -163,10 +174,6 @@ class ZygoteManager {
      * a new ZygoteManager and restart their work.
      */
     call(fileName, functionName, args, options, callback) {
-        if (this.opts['debugMode'] || this.opts['printCalls']) {
-          console.log(util.format('[ZygoteManager] Running %s:%s with %s', fileName, functionName, args.toString()));
-        }
-
         if (![READY].includes(this.state)) {
             callback(new BadStateError([READY], this.state));
             return;
@@ -180,7 +187,7 @@ class ZygoteManager {
         _.defaults(options, {
             cwd: __dirname,
             paths: [],
-            timeout: 3000,
+            timeout: 12000,
         });
 
         const callData = {
@@ -192,8 +199,8 @@ class ZygoteManager {
         };
         const callDataString = JSON.stringify(callData);
 
-        if (this.opts['debugMode']) {
-            console.log("Calling function: " + callDataString + " with timeout: " + options.timeout);
+        if (this.opts['debugMode'] || this.opts['printCalls']) {
+            console.log(util.format('[ZygoteManager] Running %s:%s with timeout:%s ms', fileName, functionName, options.timeout));
         }
 
         this.outputStdout = '';
@@ -203,6 +210,9 @@ class ZygoteManager {
         this.lastCallData = callData;
         this.state = IN_CALL;
         this.callPort.send(callData, options.timeout, (err, message) => {
+            if (this.opts['debugMode'] || this.opts['printCalls']) {
+                console.log(util.format('[ZygoteManager] Finished %s:%s with error(or null): %s and return: %s', fileName, functionName, String(err), JSON.stringify(message)));
+            }
             if (err != null) {
                 this.state = ERROR;
                 var output = new Output(
@@ -252,7 +262,7 @@ class ZygoteManager {
      * Kill Zygote with request over pipe
      */
     killMyZygote(callback) {
-        if (this.opts['debugMode']) {
+        if (this.opts['debugMode'] || this.opts['printKillZygote']) {
             console.log("[ZygoteManager] killing my zygote");
         }
         // TODO add check for state=departed
@@ -267,8 +277,8 @@ class ZygoteManager {
         if (callback) {
             this.departingCallback = callback;
         } else {
-            this.departingCallback = (err)=>{
-                console.log("TODO: REMOVE ME");
+            this.departingCallback = ()=>{
+                console.log('TODO: REMOVE ME');
             };
         }
         // TODO this cannot work with the pipe system, it needs to be updated to allow this to be replaced
@@ -300,7 +310,7 @@ class ZygoteManager {
           return new Error('invalid ZygoteManager for forceKillMyZygote');
         }
         */
-        if (this.opts['debugMode']) {
+        if (this.opts['debugMode'] || this.opts['printKillzygote']) {
             console.log("[ZygoteManager] Forcing death of zygote");
         }
 
@@ -459,7 +469,7 @@ class ZygoteManager {
      */
     startWorker(callback) {
         // TODO Add create worker code
-        if (this.opts['debugMode']) {
+        if (this.opts['debugMode'] || this.opts['printSpawnWorker']) {
             console.log("[ZygoteManager] creating worker");
         }
         if (![INIT, EXITED].includes(this.state)) {
@@ -471,7 +481,7 @@ class ZygoteManager {
             return;
         }
         this.state = PREPPING;
-        this.controlPort.send({action: 'create worker'}, 4000, (err, message) => {
+        this.controlPort.send({action: 'create worker'}, 12000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
                 callback(new TimeoutError("Creating Worker"));
@@ -524,9 +534,13 @@ class ZygoteManager {
             return;
         }
 
+        if (this.opts['printKillWorker']) {
+            console.log("[ZygoteManager] killing worker");
+        }
+
         this.state = EXITING;
 
-        this.controlPort.send({action: 'kill worker'}, 1000, (err, message) => {
+        this.controlPort.send({action: 'kill worker'}, 9000, (err, message) => {
             if (err != null) {
                 this.state = ERROR;
                 this.workerSpawned = false;
@@ -545,18 +559,6 @@ class ZygoteManager {
                 }
             }
         });
-        /*
-        this.exitingCallBack = callback;
-
-        this.timeoutID = setTimeout(() => {
-            console.log("Timeout Error");
-            // TODO Maybe try to kill 3 times? And then call callback?
-            this.timeoutID = null;
-            this.exitingCallBack(new Error("Failed to kill worker"));
-            this.exitingCallBack = null;
-        }, 1000);
-        this.child.stdio[4].write(JSON.stringify({action: 'kill worker'})+'\n');
-        */
     }
 
     _clearTimeout() {

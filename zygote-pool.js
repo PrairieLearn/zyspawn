@@ -54,7 +54,7 @@ const {
 } = require('./error');
 
 const DEFAULT_CALLBACK = (err) => { if(err) throw err; };
-
+let count = 0
 /**
  * Manages a pool of zygotes. Users create and use zygotes through this class.
  */
