@@ -1,6 +1,8 @@
+const util = require('util');
 const path = require('path');
 const { ZygotePool } = require('../zygote-pool');
 const { ZygoteInterface } = require('../zygote-pool');
+const {timeout} = require('./test-util');
 
 const options = {
     cwd: path.join(__dirname, 'python-scripts')
@@ -60,26 +62,6 @@ test("Calling on slow method", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
         zyInt.call("simple", "sleep", [0], options, (err, output) => {
-            expect(err).toBeNull();
-            zyInt.done(done);
-        });
-    });
-});
-
-test("Calling on no argument method empty list", async (done)=>{
-    zyPool = new ZygotePool(1, (err)=>{
-        var zyInt = zyPool.request();
-        zyInt.call("simple", "getNum", [], options, (err, output) => {
-            expect(err).toBeNull();
-            zyInt.done(done);
-        });
-    });
-});
-
-test("Calling on no argument method null list", async (done)=>{
-    zyPool = new ZygotePool(1, (err)=>{
-        var zyInt = zyPool.request();
-        zyInt.call("simple", "getNum", null, options, (err, output) => {
             expect(err).toBeNull();
             zyInt.done(done);
         });

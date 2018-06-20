@@ -4,7 +4,7 @@
 
 
 import signal
-import sys, traceback, os, json, importlib, copy, base64, io, matplotlib
+import sys, os, json, importlib, copy, base64, io, matplotlib
 matplotlib.use('PDF')
 
 #   The actual zygote off of which process will fork of off.
@@ -21,7 +21,7 @@ matplotlib.use('PDF')
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 isWorker = False
-shouldKillWorker = False
+
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
 def getChildPid():
@@ -74,9 +74,8 @@ def waitForChild(signum, frame):
         jsonDict["signal"] = 'sig: ' + str(signum)
         value_place = -1
     jsonStr = json.dumps(jsonDict)
-    if not shouldKillWorker:
-        sys.stderr.write("My worker has died unexpectenly")
-    #exitInfoPipe.write(jsonStr + '\n')
+    # sys.stderr.write("Child has died")
+    exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
     # sys.stderr.write("[Zygote] child died")
 
@@ -85,9 +84,7 @@ def waitForChild(signum, frame):
 # This function is called from the parseInput function
 
 def int_handler(signum, frame):
-    if(getIsWorker()):
-        sys.stderr.write("Worker is calling int_handler")
-        sys.stderr.flush()
+    if(getChildPid() == -1):
         sys.exit(0)
     else:
         pid = getChildPid()
@@ -107,7 +104,6 @@ def runWorker():
 
         while True:
 
-            exitInfoPipe.write('ZY: FLAG0\n')
             # Waiting for instructions
             json_inp = sys.stdin.readline().strip()
             if(json_inp is None or json_inp == ""):
@@ -124,7 +120,6 @@ def runWorker():
             cwd = inp['cwd']
             paths = inp['paths']
 
-            exitInfoPipe.write('ZY: FLAG1\n')
             # If no args are given, make the argument list empty
             if args is None:
                 args = []
@@ -134,10 +129,8 @@ def runWorker():
             for path in reversed(paths):
                 sys.path.insert(0, path)
             sys.path.insert(0, cwd)
-            #sys.path.insert(0, '/PrairieLearn/elements/')
 
             # change to the desired working directory
-            exitInfoPipe.write('ZY: FLAG2\n')
             try:
                 os.chdir(cwd)
             except Exception as e:
@@ -146,22 +139,15 @@ def runWorker():
                 output["present"] = False
                 ouptut["message"] = str(e)
                 output["error"] = "File path invalid"
-                json_output = json.dumps(output)
                 outf.write(json_output)
                 outf.write("\n")
                 outf.flush()
-                sys.stderr.write("File path invalid")
                 continue
 
-            exitInfoPipe.write('ZY: FLAG3\n')
             try:
-                exitInfoPipe.write('ZY: FLAG3 part b: ' + str(file) + ' - ' + str(sys.path) + '\n')
                 mod = importlib.import_module(file)
-                exitInfoPipe.write('ZY: FLAG3 part c\n')
             except Exception as e:
                 # File nonexstant
-                sys.stderr.write("File not present in the current directory")
-                sys.stderr.flush()
                 output = {}
                 output["present"] = False
                 output["message"] = str(e)
@@ -172,14 +158,12 @@ def runWorker():
                 outf.flush()
                 continue
 
-            exitInfoPipe.write('ZY: FLAG4\n')
+
             # Check if we have the required fcn in the module
             if hasattr(mod, fcn):
-                exitInfoPipe.write('ZY: FLAG5\n')
                 # Call the desired function in the loaded module
                 method = getattr(mod, fcn)
                 val = method(*args)
-                exitInfoPipe.write('ZY: FLAG6\n')
 
                 if fcn=="file":
                     # if val is None, replace it with empty string
@@ -192,39 +176,29 @@ def runWorker():
                     # if val is a string, treat it as utf-8
                     if isinstance(val,str):
                         val = bytes(val,'utf-8')
-                    exitInfoPipe.write('ZY: FLAG7\n')
                     # if this next call does not work, it will throw an error, because
                     # the thing returned by file() does not have the correct format
                     val = base64.b64encode(val).decode()
+
                 # Any function that is not 'file' or 'render' will modify 'data' and
                 # should not be returning anything (because 'data' is mutable).
-                # TODO file and render shouldn't be static things, we should
-                #       make this something that the user controls. Perhaps,
-                #       we should make it so that when you start up zygote, you
-                #       must pass in a list of such function names?
-                #if (fcn == 'file') or (fcn == 'render'):
-                lastArg = None
-
-                exitInfoPipe.write('ZY: FLAG8\n')
-                if (len(args) > 0):
-                    lastArg = args[-1]
-                if val is None or (fcn in ['file']):
-                    json_outp = json.dumps({"present": True, "val": lastArg})
+                if (fcn != 'file') and (fcn != 'render'):
+                    if val is None:
+                        json_outp = json.dumps({"present": True, "val": args[-1]})
+                    else:
+                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                        json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
+                        if json_outp_passed != json_outp:
+                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
                 else:
-                    #json_outp_passed = json.dumps({"present": True, "val": lastArg}, sort_keys=True)
-                    json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
-                    #if json_outp_passed != json_outp:
-                    #    sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
-                #else:
-                #    json_outp = json.dumps({"present": True, "val": val})
-                exitInfoPipe.write('ZY: FLAG9\n')
+                    json_outp = json.dumps({"present": True, "val": val})
             else:
                 # the function wasn't present, so report this
                 output = {}
                 output["present"] = False
                 output["error"] = "Function not present"
                 json_outp = json.dumps(output)
-            exitInfoPipe.write('ZY: FLAGA\n')
+
             # make sure all output streams are flushed
             sys.stderr.flush()
             sys.stdout.flush()
@@ -233,7 +207,6 @@ def runWorker():
             outf.write(json_outp)
             outf.write("\n")
             outf.flush()
-            exitInfoPipe.write('ZY: FLAGB\n')
 
 saved_path = copy.copy(sys.path)
 
@@ -288,8 +261,6 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "zygote already contains worker"
             return message
-        global shouldKillWorker
-        shouldKillWorker = False
         setChildPid(os.fork())
         if (getChildPid() == 0):
             # We are child
@@ -297,22 +268,9 @@ def parseInput(command_input):
             try:
                 runWorker()
             except Exception as e:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-
-                traceback_template = '''Traceback (most recent call last): File "%(filename)s", line %(lineno)s, in %(name)s %(type)s: %(message)s\n'''
-                traceback_details = {
-                         'filename': exc_traceback.tb_frame.f_code.co_filename,
-                         'lineno'  : exc_traceback.tb_lineno,
-                         'name'    : exc_traceback.tb_frame.f_code.co_name,
-                         'type'    : exc_type.__name__,
-                         'message' : str(e), # or see traceback._some_str()
-                        }
-                del(exc_type, exc_value, exc_traceback)
-                #sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
-                sys.stderr.write("run worker failed: \n"
-                 + traceback.format_exc())
-                #  + "\n" + traceback_template % traceback_details)
-            sys.stderr.write("runWorker stopped running")
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
@@ -323,7 +281,6 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
-        shouldKillWorker = True
         pid = getChildPid()
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
@@ -376,7 +333,6 @@ try:
         sys.stderr.write("Wierd issue found: " + str(getChildPid()) + ", " + str(getIsWorker()))
         sys.stderr.flush()
 except Exception as e:
-    '''
     jsonDict = {}
     jsonDict["type"] = 'exit'
     jsonDict["code"] = 1
@@ -384,19 +340,4 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    '''
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-
-    traceback_template = '''Traceback (most recent call last): File "%(filename)s", line %(lineno)s, in %(name)s %(type)s: %(message)s\n'''
-    traceback_details = {
-             'filename': exc_traceback.tb_frame.f_code.co_filename,
-             'lineno'  : exc_traceback.tb_lineno,
-             'name'    : exc_traceback.tb_frame.f_code.co_name,
-             'type'    : exc_type.__name__,
-             'message' : str(e), # or see traceback._some_str()
-            }
-    del(exc_type, exc_value, exc_traceback)
-    #sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
-    sys.stderr.write("zygote failed: \n"
-     + traceback.format_exc())
-    sys.stderr.flush()
+    # sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
