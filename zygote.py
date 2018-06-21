@@ -21,6 +21,7 @@ matplotlib.use('PDF')
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 isWorker = False
+shouldKill = False
 
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
@@ -77,7 +78,8 @@ def waitForChild(signum, frame):
     # sys.stderr.write("Child has died")
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    # sys.stderr.write("[Zygote] child died")
+    if not shouldKill:
+        sys.stderr.write("[Zygote] child died without warning")
 
 
 # Function name is self explanitory
@@ -245,6 +247,7 @@ Messages that could be sent from zygote
 # Takes in a json object for a command to execute, returns message
 # Called in try
 def parseInput(command_input):
+    global shouldKill
     message = {}
     if getIsWorker():
         sys.stderr.write("Worker should not be parsing Input: " + str(getChildPid()) + " : " + str(os.getpid()))
@@ -265,6 +268,8 @@ def parseInput(command_input):
         if (getChildPid() == 0):
             # We are child
             setChildPid(-1)
+            # Remove signal handler
+            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
             try:
                 runWorker()
             except Exception as e:
@@ -274,6 +279,7 @@ def parseInput(command_input):
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
+            shouldKill = False
             signal.signal(signal.SIGCHLD, waitForChild)
         message["success"] = True
     elif (action == "kill worker"):
@@ -281,6 +287,7 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
+        shouldKill = True
         pid = getChildPid()
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
@@ -340,4 +347,6 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    # sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+    sys.stderr.write("zygote failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
