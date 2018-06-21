@@ -88,13 +88,15 @@ test("Spawn Worker No Timeout Test", async (done) => {
 
 test("Running Simple Method that times out", async (done) => {
     jest.setTimeout(6000);
+    let localOptions = options;
+    localOptions.timeout = 3000;
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err)=>{
               expect(err).toBeNull();
               let t = 0;
-              zMan.call("simple", "timeout", [], options, (err, output) => {
+              zMan.call("simple", "timeout", [], localOptions, (err, output) => {
                   expect(String(err)).toBe('ZyspawnError: Timeout on: function \"timeout\" in file \"simple\"');
                   zMan.killWorker((err) => {
                       expect(err).toBeNull();
@@ -184,12 +186,14 @@ test("Zygote call on add python multiple files", async (done) => {
 
 test("Zygote call on non existing function", async (done) => {
     jest.setTimeout(10000);
+    let localOptions = options;
+    localOptions.timeout = 3000;
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err)=>{
               expect(err).toBeNull();
-              zMan.call("simple", "nonexsist", [10,2], options, (err, output) => {
+              zMan.call("simple", "nonexsist", [10,2], localOptions, (err, output) => {
                   expect(String(err)).toBe("ZyspawnError: Missing function \"nonexsist\" in file \"simple\"");
                   zMan.killWorker((err) => {
                         expect(err).toBeNull();
