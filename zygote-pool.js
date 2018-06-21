@@ -65,12 +65,12 @@ class ZygotePool {
      * @param {function(Error)} callback Called after initialization,
      *      if not specified, errors will be throwed.
      */
-    constructor(zygoteNum, opts={}) {
+    constructor(zygoteNum, callback = DEFAULT_CALLBACK, opts={}) {
         this._isShutdown = false;
         this._totalZygoteNum = 0;
         this._zygoteManagerList = []; // TODO health check?
         this._idleZygoteManagerQueue = new BlockingQueue();
-        this.addZygote(zygoteNum, opts);
+        this.addZygote(zygoteNum, callback, opts);
     }
 
     /**
@@ -79,7 +79,7 @@ class ZygotePool {
      * @param {function(Error)} callback Called after zygotes are created,
      *                                   or error happens
      */
-    addZygote(num, opts={}) {
+    addZygote(num, callback = DEFAULT_CALLBACK, opts={}) {
         this._totalZygoteNum += num;
 
         var jobs = [];
