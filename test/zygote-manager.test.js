@@ -1,6 +1,7 @@
 const util = require('util');
 const path = require('path');
 const ZygoteManager = require('../zygote-manager');
+const error = require('../error');
 const {timeout} = require('./test-util');
 
 const options = {
@@ -262,3 +263,25 @@ test("Zygote reuse zygote", async (done) => {
           });
     });
 });
+
+test("Calling bad function on manager", async (done) => {
+      jest.setTimeout(10000);
+      let localOptions = options;
+      localOptions.timeout = 3000;
+      ZygoteManager.create((err, zMan)=>{
+            zInterface = zMan;
+            expect(err).toBeNull();
+            zMan.startWorker((err)=>{
+                expect(err).toBeNull();
+                zMan.call("simple", "bad", [], localOptions, (err, output) => {
+                    expect(err).toBeInstanceOf(error.InternalZyspawnError)
+                    zMan.killWorker((err) => {
+                          expect(err).toBeNull();
+                          var resp = zInterface.forceKillMyZygote();
+                          zInterface = null;
+                          done();
+                    });
+                });
+            });
+      });
+  });

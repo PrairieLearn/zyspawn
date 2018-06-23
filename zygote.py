@@ -165,35 +165,44 @@ def runWorker():
             if hasattr(mod, fcn):
                 # Call the desired function in the loaded module
                 method = getattr(mod, fcn)
-                val = method(*args)
+                callWorked = True; message = "";
+                try:
+                    val = method(*args)
+                except Exception as e:
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    message = "run worker failed: " + str(e) + " " + str(exc_type) + " file:" + str(fname) + " lineno: " + str(exc_tb.tb_lineno)
+                    callWorked = False
+                if callWorked:
+                    if fcn=="file":
+                        # if val is None, replace it with empty string
+                        if val is None:
+                            val = ''
+                        # if val is a file-like object, read whatever is inside
+                        if isinstance(val,io.IOBase):
+                            val.seek(0)
+                            val = val.read()
+                        # if val is a string, treat it as utf-8
+                        if isinstance(val,str):
+                            val = bytes(val,'utf-8')
+                        # if this next call does not work, it will throw an error, because
+                        # the thing returned by file() does not have the correct format
+                        val = base64.b64encode(val).decode()
 
-                if fcn=="file":
-                    # if val is None, replace it with empty string
-                    if val is None:
-                        val = ''
-                    # if val is a file-like object, read whatever is inside
-                    if isinstance(val,io.IOBase):
-                        val.seek(0)
-                        val = val.read()
-                    # if val is a string, treat it as utf-8
-                    if isinstance(val,str):
-                        val = bytes(val,'utf-8')
-                    # if this next call does not work, it will throw an error, because
-                    # the thing returned by file() does not have the correct format
-                    val = base64.b64encode(val).decode()
-
-                # Any function that is not 'file' or 'render' will modify 'data' and
-                # should not be returning anything (because 'data' is mutable).
-                if (fcn != 'file') and (fcn != 'render'):
-                    if val is None:
-                        json_outp = json.dumps({"present": True, "val": args[-1]})
+                    # Any function that is not 'file' or 'render' will modify 'data' and
+                    # should not be returning anything (because 'data' is mutable).
+                    if (fcn != 'file') and (fcn != 'render'):
+                        if val is None:
+                            json_outp = json.dumps({"present": True, "val": args[-1]})
+                        else:
+                            json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                            json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
+                            if json_outp_passed != json_outp:
+                                sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
                     else:
-                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
-                        json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
-                        if json_outp_passed != json_outp:
-                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                        json_outp = json.dumps({"present": True, "val": val})
                 else:
-                    json_outp = json.dumps({"present": True, "val": val})
+                    json_outp = json.dumps({"present": False, "error": message})
             else:
                 # the function wasn't present, so report this
                 output = {}
