@@ -21,7 +21,6 @@ matplotlib.use('PDF')
 childPid = -1
 exitInfoPipe = open(6, 'w', encoding='utf-8')
 isWorker = False
-shouldKill = False
 
 #   Returns the pid of the current childPid
 #   If no Child exists, returns -1
@@ -78,8 +77,7 @@ def waitForChild(signum, frame):
     # sys.stderr.write("Child has died")
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    if not shouldKill:
-        sys.stderr.write("[Zygote] child died without warning")
+    # sys.stderr.write("[Zygote] child died")
 
 
 # Function name is self explanitory
@@ -165,44 +163,35 @@ def runWorker():
             if hasattr(mod, fcn):
                 # Call the desired function in the loaded module
                 method = getattr(mod, fcn)
-                callWorked = True; message = "";
-                try:
-                    val = method(*args)
-                except Exception as e:
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    message = "run worker failed: " + str(e) + " " + str(exc_type) + " file:" + str(fname) + " lineno: " + str(exc_tb.tb_lineno)
-                    callWorked = False
-                if callWorked:
-                    if fcn=="file":
-                        # if val is None, replace it with empty string
-                        if val is None:
-                            val = ''
-                        # if val is a file-like object, read whatever is inside
-                        if isinstance(val,io.IOBase):
-                            val.seek(0)
-                            val = val.read()
-                        # if val is a string, treat it as utf-8
-                        if isinstance(val,str):
-                            val = bytes(val,'utf-8')
-                        # if this next call does not work, it will throw an error, because
-                        # the thing returned by file() does not have the correct format
-                        val = base64.b64encode(val).decode()
+                val = method(*args)
 
-                    # Any function that is not 'file' or 'render' will modify 'data' and
-                    # should not be returning anything (because 'data' is mutable).
-                    if (fcn != 'file') and (fcn != 'render'):
-                        if val is None:
-                            json_outp = json.dumps({"present": True, "val": args[-1]})
-                        else:
-                            json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
-                            json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
-                            if json_outp_passed != json_outp:
-                                sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                if fcn=="file":
+                    # if val is None, replace it with empty string
+                    if val is None:
+                        val = ''
+                    # if val is a file-like object, read whatever is inside
+                    if isinstance(val,io.IOBase):
+                        val.seek(0)
+                        val = val.read()
+                    # if val is a string, treat it as utf-8
+                    if isinstance(val,str):
+                        val = bytes(val,'utf-8')
+                    # if this next call does not work, it will throw an error, because
+                    # the thing returned by file() does not have the correct format
+                    val = base64.b64encode(val).decode()
+
+                # Any function that is not 'file' or 'render' will modify 'data' and
+                # should not be returning anything (because 'data' is mutable).
+                if (fcn != 'file') and (fcn != 'render'):
+                    if val is None:
+                        json_outp = json.dumps({"present": True, "val": args[-1]})
                     else:
-                        json_outp = json.dumps({"present": True, "val": val})
+                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                        json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
+                        if json_outp_passed != json_outp:
+                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
                 else:
-                    json_outp = json.dumps({"present": False, "error": message})
+                    json_outp = json.dumps({"present": True, "val": val})
             else:
                 # the function wasn't present, so report this
                 output = {}
@@ -256,7 +245,6 @@ Messages that could be sent from zygote
 # Takes in a json object for a command to execute, returns message
 # Called in try
 def parseInput(command_input):
-    global shouldKill
     message = {}
     if getIsWorker():
         sys.stderr.write("Worker should not be parsing Input: " + str(getChildPid()) + " : " + str(os.getpid()))
@@ -277,8 +265,6 @@ def parseInput(command_input):
         if (getChildPid() == 0):
             # We are child
             setChildPid(-1)
-            # Remove signal handler
-            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
             try:
                 runWorker()
             except Exception as e:
@@ -288,7 +274,6 @@ def parseInput(command_input):
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
-            shouldKill = False
             signal.signal(signal.SIGCHLD, waitForChild)
         message["success"] = True
     elif (action == "kill worker"):
@@ -296,7 +281,6 @@ def parseInput(command_input):
             message["success"] = False
             message["message"] = "no current worker"
             return message
-        shouldKill = True
         pid = getChildPid()
         setChildPid(-1)
         os.kill(pid, signal.SIGKILL)
@@ -356,6 +340,4 @@ except Exception as e:
     jsonStr = json.dumps(jsonDict)
     exitInfoPipe.write(jsonStr + '\n')
     exitInfoPipe.flush()
-    exc_type, exc_obj, exc_tb = sys.exc_info()
-    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-    sys.stderr.write("zygote failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+    # sys.stderr.write("<--" + str(e) + ":" + str(type(e)) + "-->")

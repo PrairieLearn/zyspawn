@@ -5,8 +5,7 @@ const { ZygoteInterface } = require('../zygote-pool');
 const {timeout} = require('./test-util');
 
 const options = {
-    cwd: path.join(__dirname, 'python-scripts'),
-    timeout: 3000,
+    cwd: path.join(__dirname, 'python-scripts')
 }
 
 var zyPool = null;
