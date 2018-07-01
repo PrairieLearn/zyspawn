@@ -24,7 +24,6 @@ const roundCheck = function (zyInt, number, handleDone) {
     if (number <= 0) {
         zyInt.done(handleDone);
     } else {
-        console.log("Running a round")
         switch (getRandomInt(2)) {
             case 0:
                 zyInt.call("simple", "add", [1,2], options, (err, output) => {

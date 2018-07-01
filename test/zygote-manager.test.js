@@ -27,7 +27,7 @@ test("Spawn Work Zygote Test", async (done) => {
               zInterface = null;
               done();
           });
-    }, "test/zygotes/spawnWorkZygote.py");
+    }, {zygote:"test/zygotes/spawnWorkZygote.py", zygoteSpawnTimeout:1000});
 });
 
 test("Spawn Fail Refuse Zygote Test", async (done) => {
@@ -37,7 +37,7 @@ test("Spawn Fail Refuse Zygote Test", async (done) => {
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
           done();
-    }, "test/zygotes/spawnFailRefuseZygote.py");
+    }, {zygote:"test/zygotes/spawnFailRefuseZygote.py", zygoteSpawnTimeout:1000});
 });
 
 test("Spawn Fail Message Test", async (done) => {
@@ -48,7 +48,7 @@ test("Spawn Fail Message Test", async (done) => {
           var resp = zInterface.forceKillMyZygote();
           zInterface = null;
           done();
-    }, "test/zygotes/spawnFailMessageZygote.py");
+    }, {zygote:"test/zygotes/spawnFailMessageZygote.py"});
 });
 
 test("Spawn Worker Timeout Test", async (done) => {
@@ -61,9 +61,7 @@ test("Spawn Worker Timeout Test", async (done) => {
               zInterface = null;
               done();
           });
-          //zInterface = null;
-          //done();
-    }, "test/zygotes/spawnWorkZygote.py");
+    }, {zygote:"test/zygotes/spawnWorkZygote.py", startWorkerTimeout:1000});
 
 });
 
@@ -82,19 +80,21 @@ test("Spawn Worker No Timeout Test", async (done) => {
                   });
               });
           });
-    }, "test/zygotes/spawnWorkerZygote.py");
+    }, {zygote:"test/zygotes/spawnWorkerZygote.py"});
 
 });
 
 test("Running Simple Method that times out", async (done) => {
     jest.setTimeout(6000);
+    let local_options = options;
+    local_options.timeout = 900;
     ZygoteManager.create((err, zMan)=>{
           zInterface = zMan;
           expect(err).toBeNull();
           zMan.startWorker((err)=>{
               expect(err).toBeNull();
               let t = 0;
-              zMan.call("simple", "timeout", [], options, (err, output) => {
+              zMan.call("simple", "timeout", [], local_options, (err, output) => {
                   expect(String(err)).toBe('ZyspawnError: Timeout on: function \"timeout\" in file \"simple\"');
                   zMan.killWorker((err) => {
                       expect(err).toBeNull();
@@ -104,7 +104,7 @@ test("Running Simple Method that times out", async (done) => {
                   });
               });
           });
-    }, "test/zygotes/spawnRunTimeoutZygote.py");
+    }, {zygote:"test/zygotes/spawnRunTimeoutZygote.py"});
 });
 
 test("Zygote call on add python", async (done) => {
