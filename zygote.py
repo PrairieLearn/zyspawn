@@ -3,7 +3,7 @@
 # 2. SIGINT Handler required
 
 
-import signal
+import signal, traceback
 import sys, os, json, importlib, copy, base64, io, matplotlib
 matplotlib.use('PDF')
 
@@ -108,9 +108,6 @@ def runWorker():
             json_inp = sys.stdin.readline().strip()
             if(json_inp is None or json_inp == ""):
                 continue
-            # sys.stderr.write("::" + json_inp + "::\n")
-
-            # Executing instructions after detected within pipe.
 
             # Unpack the input as JSON and assign variables
             inp = json.loads(json_inp)
@@ -119,6 +116,7 @@ def runWorker():
             args = inp['args']
             cwd = inp['cwd']
             paths = inp['paths']
+            returnByArg = inp['returnByArg'] or False
 
             # If no args are given, make the argument list empty
             if args is None:
@@ -180,9 +178,9 @@ def runWorker():
                     # the thing returned by file() does not have the correct format
                     val = base64.b64encode(val).decode()
 
-                # Any function that is not 'file' or 'render' will modify 'data' and
+                # Any function that is returned by arg will modify 'data' and
                 # should not be returning anything (because 'data' is mutable).
-                if (fcn != 'file') and (fcn != 'render'):
+                if returnByArg:
                     if val is None:
                         json_outp = json.dumps({"present": True, "val": args[-1]})
                     else:
@@ -267,10 +265,8 @@ def parseInput(command_input):
             setChildPid(-1)
             try:
                 runWorker()
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+            except:
+                sys.stderr.write("run worker failed: " + traceback.format_exc())
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
@@ -321,7 +317,7 @@ try:
             try:
                 output = parseInput(input)
             except Exception as e:
-                sys.stderr.write("Error on parse input: " + str(e))
+                sys.stderr.write("Error on parse input: " + traceback.format_exc())
                 sys.stderr.flush()
                 output = {}
                 output["success"] = False

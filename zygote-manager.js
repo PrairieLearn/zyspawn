@@ -178,6 +178,7 @@ class ZygoteManager {
             cwd: __dirname,
             paths: [],
             timeout: 3000,
+            returnByArg: false,
         });
 
         const callData = {
@@ -186,6 +187,7 @@ class ZygoteManager {
             args: args,
             cwd: options.cwd,
             paths: options.paths,
+            returnByArg: options.returnByArg,
         };
         const callDataString = JSON.stringify(callData);
 
