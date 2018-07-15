@@ -135,8 +135,9 @@ def runWorker():
                 # Directory is invalid
                 output = {}
                 output["present"] = False
-                ouptut["message"] = str(e)
+                output["message"] = str(e)
                 output["error"] = "File path invalid"
+                json_output = json.dumps(output)
                 outf.write(json_output)
                 outf.write("\n")
                 outf.flush()
