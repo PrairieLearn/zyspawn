@@ -225,7 +225,7 @@ class ZygoteManager {
                   } else if (message['error'] == 'File not present in the current directory') {
                       callback(new FileMissingError(fileName));
                   } else {
-                      callback(new InternalZyspawnError(message['message'] + ' ' + message['error']));
+                      callback(new InternalZyspawnError(message['error']));
                   }
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
@@ -547,6 +547,10 @@ class Output {
         this.stderr = stderr;
         this.consoleLog = consoleLog;
         this.result = result;
+    }
+
+    hasResult() {
+      return result !== null;
     }
 
     toString() {
