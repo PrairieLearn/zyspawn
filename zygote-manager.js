@@ -550,7 +550,7 @@ class Output {
     }
 
     hasResult() {
-      return result !== null;
+      return this.result !== null;
     }
 
     toString() {
