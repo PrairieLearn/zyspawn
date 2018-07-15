@@ -41,7 +41,7 @@ class FileMissingError extends ZyspawnError {
      * @param {string} message the message correlated with the missing function
      */
     constructor(filename) {
-        super("Missing file " + filename);
+        super("Missing file \"" + filename +"\"");
     }
 }
 
