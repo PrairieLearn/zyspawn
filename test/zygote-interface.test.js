@@ -41,7 +41,7 @@ test("Nonexsistent File call", async (done)=>{
     zyPool = new ZygotePool(1, (err)=>{
         var zyInt = zyPool.request();
         zyInt.call("unknown", "add", [1,2], options, (err, output) => {
-            expect(String(err)).toBe("ZyspawnError: Missing file unknown");
+            expect(String(err)).toBe("ZyspawnError: Missing file \"unknown\"");
             zyInt.done(done);
         });
     });

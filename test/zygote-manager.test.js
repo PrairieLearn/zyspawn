@@ -210,7 +210,7 @@ test("Zygote call on non existing file", async (done) => {
           zMan.startWorker((err, zyInt)=>{
               expect(err).toBeNull();
               zMan.call("who", "nonexsist", [10,2], options, (err, output) => {
-                  expect(String(err)).toBe("ZyspawnError: Missing file who");
+                  expect(String(err)).toBe("ZyspawnError: Missing file \"who\"");
                   zMan.killWorker((err)=>{
                       expect(err).toBeNull();
                       zMan.killMyZygote((err)=>{
