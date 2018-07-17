@@ -3,7 +3,7 @@
 # 2. SIGINT Handler required
 
 
-import signal
+import signal, traceback
 import sys, os, json, importlib, copy, base64, io, matplotlib
 matplotlib.use('PDF')
 
@@ -108,9 +108,6 @@ def runWorker():
             json_inp = sys.stdin.readline().strip()
             if(json_inp is None or json_inp == ""):
                 continue
-            # sys.stderr.write("::" + json_inp + "::\n")
-
-            # Executing instructions after detected within pipe.
 
             # Unpack the input as JSON and assign variables
             inp = json.loads(json_inp)
@@ -119,6 +116,7 @@ def runWorker():
             args = inp['args']
             cwd = inp['cwd']
             paths = inp['paths']
+            returnByArg = inp['returnByArg'] or False
 
             # If no args are given, make the argument list empty
             if args is None:
@@ -137,8 +135,9 @@ def runWorker():
                 # Directory is invalid
                 output = {}
                 output["present"] = False
-                ouptut["message"] = str(e)
+                output["message"] = str(e)
                 output["error"] = "File path invalid"
+                json_output = json.dumps(output)
                 outf.write(json_output)
                 outf.write("\n")
                 outf.flush()
@@ -163,35 +162,43 @@ def runWorker():
             if hasattr(mod, fcn):
                 # Call the desired function in the loaded module
                 method = getattr(mod, fcn)
-                val = method(*args)
-
-                if fcn=="file":
-                    # if val is None, replace it with empty string
-                    if val is None:
-                        val = ''
-                    # if val is a file-like object, read whatever is inside
-                    if isinstance(val,io.IOBase):
-                        val.seek(0)
-                        val = val.read()
-                    # if val is a string, treat it as utf-8
-                    if isinstance(val,str):
-                        val = bytes(val,'utf-8')
-                    # if this next call does not work, it will throw an error, because
-                    # the thing returned by file() does not have the correct format
-                    val = base64.b64encode(val).decode()
-
-                # Any function that is not 'file' or 'render' will modify 'data' and
-                # should not be returning anything (because 'data' is mutable).
-                if (fcn != 'file') and (fcn != 'render'):
-                    if val is None:
-                        json_outp = json.dumps({"present": True, "val": args[-1]})
-                    else:
-                        json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
-                        json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
-                        if json_outp_passed != json_outp:
-                            sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                try:
+                    val = method(*args)
+                except:
+                    error = traceback.format_exc()
+                    sys.stderr.write("method call failed: " + error)
+                    output = {}
+                    output["present"] = False
+                    output["error"] = error
+                    json_outp = json.dumps(output)
                 else:
-                    json_outp = json.dumps({"present": True, "val": val})
+                    if fcn=="file":
+                        # if val is None, replace it with empty string
+                        if val is None:
+                            val = ''
+                        # if val is a file-like object, read whatever is inside
+                        if isinstance(val,io.IOBase):
+                            val.seek(0)
+                            val = val.read()
+                        # if val is a string, treat it as utf-8
+                        if isinstance(val,str):
+                            val = bytes(val,'utf-8')
+                        # if this next call does not work, it will throw an error, because
+                        # the thing returned by file() does not have the correct format
+                        val = base64.b64encode(val).decode()
+
+                    # Any function that is returned by arg will modify 'data' and
+                    # should not be returning anything (because 'data' is mutable).
+                    if returnByArg:
+                        if val is None:
+                            json_outp = json.dumps({"present": True, "val": args[-1]})
+                        else:
+                            json_outp_passed = json.dumps({"present": True, "val": args[-1]}, sort_keys=True)
+                            json_outp = json.dumps({"present": True, "val": val}, sort_keys=True)
+                            if json_outp_passed != json_outp:
+                                sys.stderr.write('WARNING: Passed and returned value of "data" differ in the function ' + str(fcn) + '() in the file ' + str(cwd) + '/' + str(file) + '.py.\n\n passed:\n  ' + str(args[-1]) + '\n\n returned:\n  ' + str(val) + '\n\nThere is no need to be returning "data" at all (it is mutable, i.e., passed by reference). In future, this code will throw a fatal error. For now, the returned value of "data" was used and the passed value was discarded.')
+                    else:
+                        json_outp = json.dumps({"present": True, "val": val})
             else:
                 # the function wasn't present, so report this
                 output = {}
@@ -267,10 +274,8 @@ def parseInput(command_input):
             setChildPid(-1)
             try:
                 runWorker()
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                sys.stderr.write("run worker failed: " + str(e) + " " + str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno))
+            except:
+                sys.stderr.write("run worker failed: " + traceback.format_exc())
             sys.exit(1) # exit with error code if child exits runWorker
         else:
             # Set signal handler for when child dies
@@ -321,7 +326,7 @@ try:
             try:
                 output = parseInput(input)
             except Exception as e:
-                sys.stderr.write("Error on parse input: " + str(e))
+                sys.stderr.write("Error on parse input: " + traceback.format_exc())
                 sys.stderr.flush()
                 output = {}
                 output["success"] = False

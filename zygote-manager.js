@@ -170,7 +170,7 @@ class ZygoteManager {
         }
 
         if (!this._checkState([READY], 'call')) {
-            callback(new InternalZyspawnError('Invalid ZygoteManager state for call()'));
+            callback(new InternalZyspawnError('Invalid ZygoteManager props for call()'));
             return;
         }
 
@@ -178,6 +178,7 @@ class ZygoteManager {
             cwd: __dirname,
             paths: [],
             timeout: 3000,
+            returnByArg: false,
         });
 
         const callData = {
@@ -186,6 +187,7 @@ class ZygoteManager {
             args: args,
             cwd: options.cwd,
             paths: options.paths,
+            returnByArg: options.returnByArg,
         };
         const callDataString = JSON.stringify(callData);
 
@@ -223,7 +225,7 @@ class ZygoteManager {
                   } else if (message['error'] == 'File not present in the current directory') {
                       callback(new FileMissingError(fileName));
                   } else {
-                      callback(new InternalZyspawnError(message['message'] + ' ' + message['error']));
+                      callback(new InternalZyspawnError(message['error']));
                   }
                   this._logError('_createdMessageHandler Failed with messsage "' + message['message'] + '"');
                 }
@@ -255,10 +257,10 @@ class ZygoteManager {
         // TODO add check for state=departed
         // TODO remove state exited from the check here
         if (![INIT, EXITED, ERROR].includes(this.state)) {
-          callback(new Error('Cannot kill zygote until worker is killed: ' + String(this.state)));
+          callback(new InternalZyspawnError('Cannot kill zygote until worker is killed: ' + String(this.state)));
         }
         if (!this._checkState([INIT, EXITED, ERROR],'killMyZygote')) {
-          callback(new Error('invalid ZygoteManager state for killMyZygote'));
+          callback(new InternalZyspawnError('Invalid ZygoteManager props for killMyZygote'));
         }
         this.state = DEPARTING;
         if (callback) {
@@ -277,7 +279,7 @@ class ZygoteManager {
             this.timeoutID = null;
             // TODO listen for child dieing event instead
             //this.departingCallback(new Error("timeout while trying to kill zygote"), new Output("<stdout>", "<stderr>", "<result>"));
-            this.departingCallback(new Error("timeout while trying to kill zygote"));
+            this.departingCallback(new TimeoutError("Killing Zygote"));
             this.departingCallback = null;
             this.state = DEPARTED;
         }, this.options['killZygoteTimeout']);
@@ -308,7 +310,7 @@ class ZygoteManager {
             this.state = DEPARTED;
             this.timeoutID = null;
             if (this.departingCallback != null) {
-                this.departingCallback(new Error("[ZygoteManager] timeout while trying to force kill zygote"));
+                this.departingCallback(new TimeoutError("Force Killing Zygote"));
             }
             this.departingCallback = null;
         }, this.options['killZygoteTimeout']);
@@ -336,7 +338,7 @@ class ZygoteManager {
             return;
         }
         if (!this._checkState([INIT, EXITED], 'startWorker')) {
-            callback(new Error('invalid ZygoteManager state for startWorker()'));
+            callback(new InternalZyspawnError('Invalid ZygoteManager props for startWorker()'));
             return;
         }
         this.state = PREPPING;
@@ -377,7 +379,7 @@ class ZygoteManager {
             return;
         }
         if (!this._checkState([READY, ERROR], 'killWorker')) {
-            callback(new Error('invalid ZygoteManager state for killWorker()'), null);
+            callback(new InternalZyspawnError('Invalid ZygoteManager props for killWorker()'), null);
             return;
         }
 
@@ -490,7 +492,7 @@ class ZygoteManager {
           err = new InternalZyspawnError('invalid state for _zygoteExitListener:' + String(this.state));
         }
         else if (!this._checkState([DEPARTING],'_zygoteExitListener')) {
-          err = new InternalZyspawnError('invalid ZygoteManager state for _zygoteExitListener');
+          err = new InternalZyspawnError('Invalid ZygoteManager props for _zygoteExitListener');
         }
         else if (code != 0) {
           err = new InternalZyspawnError('Bad return code for _zygoteExitListener: ' + code);
@@ -545,6 +547,10 @@ class Output {
         this.stderr = stderr;
         this.consoleLog = consoleLog;
         this.result = result;
+    }
+
+    hasResult() {
+      return this.result !== null;
     }
 
     toString() {
