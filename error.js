@@ -4,19 +4,19 @@ const util = require('util')
  * All errors happening inside zyspawn
  */
 class ZyspawnError extends Error {
-    constructor(message) {
-        super(message);
-        this.name = 'ZyspawnError';
-    }
+	constructor(message) {
+		super(message);
+		this.name = 'ZyspawnError';
+	}
 }
 
 /**
  * Errors due to problems of implementation.
  */
 class InternalZyspawnError extends ZyspawnError {
-    constructor(message) {
-        super("Internal error: " + message);
-    }
+	constructor(message) {
+		super("Internal error: " + message);
+	}
 }
 
 /**
@@ -24,12 +24,12 @@ class InternalZyspawnError extends ZyspawnError {
  *      ZygoteInterface.call()
  */
 class FunctionMissingError extends ZyspawnError {
-    /**
-     * @param {string} message the message correlated with the missing function
-     */
-    constructor(funcname, filename) {
-        super("Missing function \"" + funcname + "\" in file \"" + filename + "\"");
-    }
+	/**
+	 * @param {string} message the message correlated with the missing function
+	 */
+	constructor(funcname, filename) {
+		super("Missing function \"" + funcname + "\" in file \"" + filename + "\"");
+	}
 }
 
 /**
@@ -37,12 +37,12 @@ class FunctionMissingError extends ZyspawnError {
  *      ZygoteInterface.call()
  */
 class FileMissingError extends ZyspawnError {
-    /**
-     * @param {string} message the message correlated with the missing function
-     */
-    constructor(filename) {
-        super("Missing file \"" + filename +"\"");
-    }
+	/**
+	 * @param {string} message the message correlated with the missing function
+	 */
+	constructor(filename) {
+		super("Missing file \"" + filename +"\"");
+	}
 }
 
 /**
@@ -51,9 +51,9 @@ class FileMissingError extends ZyspawnError {
  *      // TODO ...
  */
 class InvalidOperationError extends ZyspawnError {
-    constructor(issue) {
-        super("Invald operation: " + issue);
-    }
+	constructor(issue) {
+		super("Invald operation: " + issue);
+	}
 }
 
 /**
@@ -62,9 +62,9 @@ class InvalidOperationError extends ZyspawnError {
  *      // TODO ...
  */
 class TimeoutError extends ZyspawnError {
-    constructor(timeoutDesc) {
-        super("Timeout on: " + timeoutDesc);
-    }
+	constructor(timeoutDesc) {
+		super("Timeout on: " + timeoutDesc);
+	}
 }
 
 
